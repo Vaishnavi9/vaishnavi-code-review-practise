@@ -1,0 +1,457 @@
+[
+  {
+    "slug": "01-commit",
+    "title": "COMMIT: finish the database transaction",
+    "subtitle": "One transaction T1; two related writes; normal automatic flushing",
+    "steps": [
+      [
+        "1. Begin T1",
+        "Before: neither new record exists.",
+        "One participating connection owns the database transaction."
+      ],
+      [
+        "2. Prepare both changes",
+        "Hibernate tracks changes in its persistence context.",
+        "After: changes may still be waiting in application memory."
+      ],
+      [
+        "3. Flush pending work",
+        "Hibernate sends the needed SQL through JDBC.",
+        "After: both writes have executed, but remain uncommitted."
+      ],
+      [
+        "4. Database confirms COMMIT",
+        "After: both changes are committed.",
+        "An appropriate new read can see them; old snapshots may differ."
+      ]
+    ],
+    "rule": "Successful SQL execution is different from successful COMMIT.",
+    "body": "Use one transaction when related database changes must become committed together. The owning transaction boundary commits; a method that joined an outer transaction does not commit independently. Normal Hibernate flushing sends pending SQL before commit. A successful commit must be established, not assumed from a method body returning. Durability depends on database durability settings; replication lag is a separate issue. This is a proposed two-write lesson, not a claim that an outbox exists in this project.",
+    "snippet": "BEGIN;\n-- Write related record A.\n-- Write related record B.\nCOMMIT;",
+    "language": "sql",
+    "evidence": "In a disposable test database, perform both writes and verify both through a new transaction after commit. Checking managed Java objects alone does not prove commit.",
+    "question": "After the first INSERT succeeds, has the transaction committed?",
+    "sources": [
+      "commit",
+      "proxy",
+      "hibernate"
+    ],
+    "comparison": false
+  },
+  {
+    "slug": "02-full-rollback",
+    "title": "ROLLBACK: discard the whole transaction",
+    "subtitle": "One connection, one transaction T1; no independently committed work",
+    "steps": [
+      [
+        "1. Begin T1 and write A",
+        "Before: new records A and B are absent.",
+        "After: A exists only as an uncommitted change."
+      ],
+      [
+        "2. Write B fails",
+        "An immediate database constraint rejects B.",
+        "The application must not treat T1 as successful."
+      ],
+      [
+        "3. End T1 with ROLLBACK",
+        "The database discards the changes made within T1.",
+        "Earlier successful writes in T1 are included."
+      ],
+      [
+        "4. Verify committed state",
+        "After: neither new record A nor B is committed.",
+        "Previously committed records remain unchanged."
+      ]
+    ],
+    "rule": "Rollback covers this transaction, not every action the program performed.",
+    "body": "Use full rollback when one required step fails and keeping earlier changes would violate the business rule. Database rollback does not reset Java fields, retract logs or emails, undo external calls, or reverse another transaction that already committed. Generated sequence numbers need not be returned, so gaps do not prove lost records. Do not try to continue normal JPA work after a failed flush; finish rollback and begin a fresh unit of work.",
+    "snippet": "BEGIN;\n-- Write A, then encounter a failure.\nROLLBACK;",
+    "language": "sql",
+    "evidence": "Cause a known constraint failure after an earlier write. Check from a fresh transaction that the earlier write is absent. Do not infer rollback just from an exception being printed.",
+    "question": "Does rollback erase rows committed by a previous transaction?",
+    "sources": [
+      "rollback",
+      "hibernate"
+    ],
+    "comparison": false
+  },
+  {
+    "slug": "03-spring-rollback-rules",
+    "title": "SPRING: choose the rollback rule",
+    "subtitle": "An exception crosses the Spring transaction proxy boundary",
+    "steps": [
+      [
+        "1. Call the Spring-managed method",
+        "Before: no transaction, or a compatible outer transaction.",
+        "Spring starts or joins one according to propagation."
+      ],
+      [
+        "2. An exception escapes the method",
+        "Spring receives the exception at its interceptor.",
+        "An exception swallowed inside the method may not reach it."
+      ],
+      [
+        "3. Match the configured rule",
+        "Default: RuntimeException or Error requests rollback.",
+        "A checked exception does not request rollback by default."
+      ],
+      [
+        "4. Complete at the owning boundary",
+        "A matching rollback rule causes rollback or rollback-only.",
+        "Otherwise commit is attempted only if the transaction is viable."
+      ]
+    ],
+    "rule": "A rollback rule is a decision; the database can still make commit impossible.",
+    "body": "Use rollbackFor with an exception type when a checked failure must undo database work. noRollbackFor prevents that exception from itself requesting rollback; it cannot make an aborted database transaction committable. The ClassName variants match name patterns and can match more than intended. Defaults can be changed globally. In ordinary proxy mode, self-invocation does not activate the annotation on the called method.",
+    "snippet": "// Fragment on a Spring-managed service method.\n// Import org.springframework.transaction.annotation.Transactional.\n@Transactional(rollbackFor = Exception.class)\n// method declaration and body go here",
+    "language": "java",
+    "evidence": "Compare a controlled checked exception under default rules and rollbackFor. Invoke through the proxy and inspect committed rows in a new transaction. A test-owned outer transaction can hide the real commit boundary.",
+    "question": "Does catching an exception automatically roll back the transaction?",
+    "sources": [
+      "rules",
+      "annotation",
+      "proxy"
+    ],
+    "comparison": false
+  },
+  {
+    "slug": "04-explicit-rollback-only",
+    "title": "EXPLICIT ROLLBACK-ONLY",
+    "subtitle": "Programmatic control when the application detects an invalid result",
+    "steps": [
+      [
+        "1. Enter TransactionTemplate callback",
+        "Before: a new or joined transaction is active.",
+        "Related writes participate in that transaction."
+      ],
+      [
+        "2. A business check rejects the result",
+        "No exception is required for this decision.",
+        "Example: a required consistency check fails."
+      ],
+      [
+        "3. Mark the transaction rollback-only",
+        "The status records that this transaction must not commit.",
+        "This does not immediately rewind Java objects."
+      ],
+      [
+        "4. Leave the owning transaction boundary",
+        "After: the transaction rolls back.",
+        "Return an explicit unsuccessful business result to the caller."
+      ]
+    ],
+    "rule": "Do not report success merely because the callback returned normally.",
+    "body": "TransactionTemplate lets code request rollback via its status object. This is useful when returning a rejection is deliberate, but it ties the code to transaction control. Prefer clear exception-based rules when they express the business outcome better. With joined transactions, rollback-only affects the shared physical transaction; an outer caller may receive UnexpectedRollbackException when it attempts commit.",
+    "snippet": "// Fragment; template is an injected TransactionTemplate.\n// Import org.springframework.transaction.support.TransactionTemplate.\nboolean accepted = template.execute(status -> {\n    // perform participating database work\n    status.setRollbackOnly();\n    return false;\n});",
+    "language": "java",
+    "evidence": "Write a record in a template callback, mark rollback-only, then check that a fresh transaction cannot find the record.",
+    "question": "Is rollback-only a request to commit just the earlier writes?",
+    "sources": [
+      "programmatic",
+      "propagation"
+    ],
+    "comparison": false
+  },
+  {
+    "slug": "05-caught-inner-failure",
+    "title": "CAUGHT FAILURE: the transaction can still be doomed",
+    "subtitle": "Outer service and proxied inner service use REQUIRED",
+    "steps": [
+      [
+        "1. Outer service starts T1",
+        "The inner service joins the same physical transaction.",
+        "There is no second independent database commit."
+      ],
+      [
+        "2. Inner method throws a runtime exception",
+        "The inner transaction interceptor marks T1 rollback-only.",
+        "Control returns to the outer method as an exception."
+      ],
+      [
+        "3. Outer method catches the exception",
+        "Java execution can continue.",
+        "The rollback-only marker is still present."
+      ],
+      [
+        "4. Outer service attempts completion",
+        "T1 rolls back; an unexpected rollback is reported.",
+        "After: none of T1's writes commit."
+      ]
+    ],
+    "rule": "Catching an exception does not repair a transaction marked rollback-only.",
+    "body": "This illustrates the common UnexpectedRollbackException case: an inner proxied REQUIRED method requests rollback while the outer caller attempts normal completion. Do not swallow the failure and report success. Recover in a new transaction after the failed one ends. A same-object call that bypasses the proxy is a different case; distinguish the paths when debugging.",
+    "snippet": "// Pseudocode: the inner call crosses another Spring proxy.\nouter REQUIRED T1:\n    try inner REQUIRED T1\n    catch failure\n    return normally\n// T1 still cannot commit.",
+    "language": "text",
+    "evidence": "Use two Spring-managed beans, make the inner call fail, catch outside that call, and assert rollback plus the outer completion error.",
+    "question": "How many physical transactions exist in this example?",
+    "sources": [
+      "propagation"
+    ],
+    "comparison": false
+  },
+  {
+    "slug": "06-savepoint",
+    "title": "SAVEPOINT: undo only the later portion",
+    "subtitle": "Database / JDBC concept; JPA objects are not rewound",
+    "steps": [
+      [
+        "1. Begin T1 and write A",
+        "Before: no new A or B.",
+        "After: A is pending in T1."
+      ],
+      [
+        "2. Create savepoint S, then attempt B",
+        "The savepoint marks a position within T1.",
+        "It is not an independent commit."
+      ],
+      [
+        "3. ROLLBACK TO SAVEPOINT S",
+        "After: work after S is discarded.",
+        "A remains pending; B is undone."
+      ],
+      [
+        "4. Commit the surviving work",
+        "If business rules permit, COMMIT T1.",
+        "After: A is committed; B is absent."
+      ]
+    ],
+    "rule": "Use partial rollback only when the surviving work is valid on its own.",
+    "body": "A savepoint permits partial database rollback. RELEASE SAVEPOINT removes the marker; it is not a commit. NESTED propagation uses savepoints only with suitable transaction-manager and driver support. JPA does not provide nested transaction semantics: rolling back JDBC state does not rewind the EntityManager cache. Do not add NESTED to this JPA repository and assume it is safe. First learn savepoints in an isolated JDBC/SQL exercise.",
+    "snippet": "BEGIN;\n-- Write independent A.\nSAVEPOINT optional_part;\n-- Attempt optional B.\nROLLBACK TO SAVEPOINT optional_part;\nCOMMIT;",
+    "language": "sql",
+    "evidence": "Using a scratch fixture, write A before the savepoint and B after it. Roll back to the savepoint, commit, and verify only A from a new transaction.",
+    "question": "Is A already committed when the savepoint is created?",
+    "sources": [
+      "savepoint",
+      "jpa-manager"
+    ],
+    "comparison": false
+  },
+  {
+    "slug": "07-independent-transaction",
+    "title": "REQUIRES_NEW: an independent transaction",
+    "subtitle": "This is a propagation choice, not a partial rollback mechanism",
+    "steps": [
+      [
+        "1. Outer transaction T1 is active",
+        "Its database work remains uncommitted.",
+        "The outer resources may remain held."
+      ],
+      [
+        "2. Proxied inner call starts T2",
+        "T1 is suspended; T2 is independent.",
+        "Another database connection is normally needed."
+      ],
+      [
+        "3. Inner T2 commits successfully",
+        "After: T2's work is committed.",
+        "Outer T1 resumes with its work still pending."
+      ],
+      [
+        "4. Outer T1 later rolls back",
+        "After: T1's changes are discarded.",
+        "T2's committed work remains."
+      ]
+    ],
+    "rule": "Do not split two writes that must be atomic across independent transactions.",
+    "body": "REQUIRES_NEW can deliberately preserve an independent record, but its meaning must be valid if the outer operation fails. It consumes additional connection capacity and can contend with locks retained by the suspended transaction. Use it deliberately, not as a generic fix for failed payment writes.",
+    "snippet": "// Fragment on a method called through another Spring proxy.\n// Imports: Transactional and Propagation from Spring transaction.annotation.\n@Transactional(propagation = Propagation.REQUIRES_NEW)\n// method declaration and body go here",
+    "language": "java",
+    "evidence": "Make T2 commit, then force T1 to roll back. A fresh transaction should find only T2's work. Also test connection-pool pressure before considering this at scale.",
+    "question": "Can rolling back T1 undo the commit of T2?",
+    "sources": [
+      "propagation"
+    ],
+    "comparison": false
+  },
+  {
+    "slug": "08-compensation",
+    "title": "COMPENSATION: a new corrective action",
+    "subtitle": "Local rollback cannot undo an external provider action",
+    "steps": [
+      [
+        "1. Provider has confirmed a successful action",
+        "Before: an external effect already exists.",
+        "It is outside our local database transaction."
+      ],
+      [
+        "2. A later business step fails",
+        "Rolling back our database does not rewind the provider.",
+        "Keep the external outcome and recovery need recorded."
+      ],
+      [
+        "3. Choose an allowed compensating action",
+        "For example: request a void or refund where applicable.",
+        "This is a new operation with its own identity and rules."
+      ],
+      [
+        "4. Track compensation to a known outcome",
+        "It may succeed, fail, or remain pending.",
+        "Preserve history and reconcile unresolved outcomes."
+      ]
+    ],
+    "rule": "Compensation does not erase history or guarantee an instant reversal.",
+    "body": "Use a compensating workflow for completed effects that cannot share a local database transaction. A provider timeout means the original action may have happened: establish the outcome before choosing an action, and do not blindly submit another payment. A refund is not a SQL rollback. Compensation must handle duplicate requests, failures and human recovery. A full saga implementation is a later topic, not implemented here.",
+    "snippet": "// Explanatory pseudocode; no provider integration is implemented.\nconfirmed external outcome + later failure\n    -> record recovery task\n    -> request permitted compensation with stable identity\n    -> reconcile until outcome is known",
+    "language": "text",
+    "evidence": "With a fake provider, simulate a completed action followed by local failure. Verify recovery is recorded and retries do not create duplicate compensation effects.",
+    "question": "Will rolling back PostgreSQL cancel an already completed provider action?",
+    "sources": [
+      "compensation"
+    ],
+    "comparison": false
+  },
+  {
+    "slug": "09-flush-internals",
+    "title": "FLUSH: send the pending database work",
+    "subtitle": "One thread, persistence context S1 and transaction T1",
+    "steps": [
+      [
+        "1. Managed objects change in S1",
+        "Before: Java state may differ from stored state.",
+        "Hibernate tracks objects and pending insert/delete actions."
+      ],
+      [
+        "2. Flush checks state and prepares actions",
+        "Dirty checking identifies relevant entity changes.",
+        "ActionQueue holds work associated with this session."
+      ],
+      [
+        "3. Execute SQL through JDBC on T1's connection",
+        "Hibernate orders actions and may batch statements if configured.",
+        "PostgreSQL performs writes and constraint checks."
+      ],
+      [
+        "4. Work is synchronized, still uncommitted",
+        "After: SQL effects belong to T1.",
+        "A later COMMIT accepts them; ROLLBACK discards them."
+      ]
+    ],
+    "rule": "A flush affects this persistence context, not all application instances.",
+    "body": "The persistence context tracks managed objects; Hibernate's ActionQueue stores pending data-modification actions. Dirty checking and action ordering turn changes into SQL executed through JDBC. This is not a durable message broker or a global work queue. SQL order can differ from Java call order. Some operations, such as identity-generated inserts, can execute earlier. A rollback does not restore your Java objects to their old field values.",
+    "snippet": "// Fragment inside an active JPA transaction.\n// entityManager is an injected jakarta.persistence.EntityManager.\nentityManager.flush();\n// Transaction is still active; this call is not COMMIT.",
+    "language": "java",
+    "evidence": "Observe SQL execution at flush, then deliberately roll back. A separate transaction must not find the rolled-back new row. SQL logs alone prove execution, not commit.",
+    "question": "If instance A flushes, does it flush instance B's managed objects?",
+    "sources": [
+      "queue",
+      "hibernate"
+    ],
+    "comparison": false
+  },
+  {
+    "slug": "10-flush-policies",
+    "title": "FLUSH POLICIES: when synchronization happens",
+    "subtitle": "Comparison, not a sequence of four steps",
+    "steps": [
+      [
+        "AUTO \u2014 normal starting point",
+        "Flush before commit and when needed before queries.",
+        "JPA option; exact query triggers depend on API and provider."
+      ],
+      [
+        "COMMIT \u2014 favour synchronization at completion",
+        "Flush on commit; do not rely on queries seeing pending edits.",
+        "JPA option; it does not promise that SQL always waits."
+      ],
+      [
+        "ALWAYS \u2014 Hibernate-specific",
+        "Flush before queries and on commit.",
+        "Can add work; choose only for a demonstrated requirement."
+      ],
+      [
+        "MANUAL \u2014 Hibernate-specific",
+        "The application explicitly requests flushing.",
+        "Pending changes can be omitted if no flush occurs."
+      ]
+    ],
+    "rule": "A flush policy controls synchronization, not the business commit boundary.",
+    "body": "JPA exposes AUTO and COMMIT; Hibernate also exposes ALWAYS and MANUAL. An explicit flush call and MANUAL flush mode are different things: you may call flush while using AUTO. Do not change the policy merely to avoid a constraint error. Keep the default until a measured need justifies a different policy.",
+    "snippet": "// Illustrative only; not a recommendation to change this project.\n// Imports: jakarta.persistence.FlushModeType and EntityManager.\nentityManager.setFlushMode(FlushModeType.AUTO);",
+    "language": "java",
+    "evidence": "In separate controlled tests, modify an entity, issue a relevant query, and inspect SQL plus returned data under each policy. Roll back fixtures afterward.",
+    "question": "Is calling flush() once the same as choosing MANUAL flush mode?",
+    "sources": [
+      "modes"
+    ],
+    "comparison": true
+  },
+  {
+    "slug": "11-explicit-flush",
+    "title": "EXPLICIT FLUSH: ask for synchronization now",
+    "subtitle": "Useful when database interaction is needed before continuing",
+    "steps": [
+      [
+        "1. Prepare pending entity changes",
+        "Before: some SQL may not yet have executed.",
+        "Other managed entities may also have pending changes."
+      ],
+      [
+        "2. Call flush explicitly",
+        "EntityManager.flush() synchronizes the persistence context.",
+        "JpaRepository also offers flush and save-and-flush methods."
+      ],
+      [
+        "3. Database checks the executed writes",
+        "An immediate constraint failure can appear here.",
+        "Successful flush does not prove a later commit will succeed."
+      ],
+      [
+        "4. Continue or finish the transaction",
+        "Commit at its owner, or roll back on failure.",
+        "Inside an outer transaction, flush does not end that transaction."
+      ]
+    ],
+    "rule": "Flush is not limited to just the entity named in saveAndFlush.",
+    "body": "JpaRepository.flush synchronizes pending changes; saveAndFlush saves then flushes; saveAllAndFlush saves the collection then flushes. Your narrow TransactionRepository does not expose these methods. You would need an intentional interface/API choice before calling them. An explicit flush can expose immediate constraints earlier. Flushing after every save can reduce batching opportunities. Without an outer transaction, a transactional repository method can also commit when it returns; the commit comes from that boundary, not from flush itself.",
+    "snippet": "// Fragment, only for a repository extending JpaRepository.\n// Not currently available on our TransactionRepository.\nTransaction saved = repository.saveAndFlush(transaction);\n// If an outer transaction exists, it still has to finish.",
+    "language": "java",
+    "evidence": "Under an explicit outer transaction, save-and-flush then roll back. Verify the new row is absent afterward. Compare SQL batches before and after adding frequent flushes.",
+    "question": "Does the word Flush in a method name mean the record is committed?",
+    "sources": [
+      "repository",
+      "hibernate"
+    ],
+    "comparison": false
+  },
+  {
+    "slug": "12-failure-timing",
+    "title": "FAILURE TIMING: flush success is not commit success",
+    "subtitle": "Different failures occur at different boundaries",
+    "steps": [
+      [
+        "1. Application accepts the input",
+        "Before: no committed effect is established.",
+        "Input validation alone cannot detect every database conflict."
+      ],
+      [
+        "2. Flush executes SQL",
+        "Immediate constraints may reject a write here.",
+        "An already-aborted PostgreSQL transaction needs recovery."
+      ],
+      [
+        "3. Commit attempts completion",
+        "Deferred constraints or other commit failures may still occur.",
+        "A successful flush is not a success receipt for the caller."
+      ],
+      [
+        "4. Distinguish confirmed failure from uncertainty",
+        "Known rollback: no committed effect from that transaction.",
+        "Lost commit response: verify state before repeating the operation."
+      ]
+    ],
+    "rule": "Do not treat a connection timeout as proof that COMMIT did not happen.",
+    "body": "PostgreSQL checks NOT NULL and CHECK constraints immediately. Deferrable constraints can be checked later, including at commit. The unique constraint in this project's SQL is not declared deferrable. After a PostgreSQL statement failure, normal work cannot simply continue in that transaction; rollback or suitable savepoint recovery is needed. After a Hibernate failure, end the unit of work rather than trusting its managed state. A lost commit acknowledgement is an uncertainty problem: resolve using stable operation identity and a fresh read or retry protocol.",
+    "snippet": "-- Conceptual SQL fragment; only affects deferrable constraints.\nSET CONSTRAINTS ALL DEFERRED;\n-- A later COMMIT may still reject inconsistent data.",
+    "language": "sql",
+    "evidence": "Use an isolated fixture with an explicitly deferrable constraint to separate statement success from commit failure. Separately test ambiguous commit responses with controlled fault injection; never infer correctness from logs alone.",
+    "question": "If the connection disappears during commit, can we assume rollback?",
+    "sources": [
+      "constraints",
+      "rollback",
+      "hibernate"
+    ],
+    "comparison": false
+  }
+]

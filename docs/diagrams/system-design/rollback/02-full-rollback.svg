@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="950" viewBox="0 0 1200 950" role="img" aria-labelledby="title desc">
+<title id="title">ROLLBACK: discard the whole transaction</title>
+<desc id="desc">One connection, one transaction T1; no independently committed work. Rollback covers this transaction, not every action the program performed.</desc>
+<rect width="1200" height="950" fill="white"/>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="black"/></marker></defs>
+<text x="600" y="54" text-anchor="middle" font-family="Arial,sans-serif" font-size="31" font-weight="bold" fill="black">ROLLBACK: discard the whole transaction</text>
+<text x="600" y="97" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">One connection, one transaction T1; no independently committed work</text>
+<rect x="50" y="140" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="174" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">1. Begin T1 and write A</text>
+<text x="600" y="208" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Before: new records A and B are absent.</text>
+<text x="600" y="242" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">After: A exists only as an uncommitted change.</text>
+<path d="M600 265 L600 291" stroke="black" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+<rect x="50" y="300" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="334" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">2. Write B fails</text>
+<text x="600" y="368" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">An immediate database constraint rejects B.</text>
+<text x="600" y="402" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">The application must not treat T1 as successful.</text>
+<path d="M600 425 L600 451" stroke="black" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+<rect x="50" y="460" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="494" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">3. End T1 with ROLLBACK</text>
+<text x="600" y="528" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">The database discards the changes made within T1.</text>
+<text x="600" y="562" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Earlier successful writes in T1 are included.</text>
+<path d="M600 585 L600 611" stroke="black" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+<rect x="50" y="620" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="654" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">4. Verify committed state</text>
+<text x="600" y="688" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">After: neither new record A nor B is committed.</text>
+<text x="600" y="722" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Previously committed records remain unchanged.</text>
+<text x="600" y="880" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="bold" fill="black">Rollback covers this transaction, not every action the program performed.</text>
+<text x="600" y="922" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="normal" fill="black">Conceptual teaching diagram. No execution times or tested outcomes are implied.</text>
+</svg>

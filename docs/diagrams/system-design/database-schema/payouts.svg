@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1760" height="637" viewBox="0 0 1760 637"><title>payouts schema and foreign keys</title><rect width="100%" height="100%" fill="white"/><defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="black"/></marker></defs>
+<text x="40" y="50" fill="black" font-family="Arial,sans-serif" font-size="32" font-weight="bold">paymesh.payouts</text>
+<text x="40" y="90" fill="black" font-family="Arial,sans-serif" font-size="24" font-weight="normal">FK arrow: child columns → referenced parent key. Only declared constraints.</text>
+<rect x="40" y="130" width="770" height="447" fill="white" stroke="black" stroke-width="2"/>
+<text x="60" y="169" fill="black" font-family="Arial,sans-serif" font-size="24" font-weight="bold">Column | SQL type | key | nullability</text>
+<text x="60" y="213" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">payout_id : uuid  PK NOT NULL</text>
+<text x="60" y="256" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">reservation_id : uuid  FK NOT NULL</text>
+<text x="60" y="299" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">payout_destination_id : uuid  FK NOT NULL</text>
+<text x="60" y="342" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">amount_minor : bigint  NOT NULL</text>
+<text x="60" y="385" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">currency : varchar(3)  NOT NULL</text>
+<text x="60" y="428" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">status : varchar(40)  NOT NULL</text>
+<text x="60" y="471" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">version : bigint  NOT NULL</text>
+<text x="60" y="514" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">created_at : timestamptz  NOT NULL</text>
+<text x="60" y="557" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">completed_at : timestamptz  nullable</text>
+<path d="M810 195 H1110" fill="none" stroke="black" stroke-width="2" marker-end="url(#a)"/>
+<text x="835" y="162" fill="black" font-family="Arial,sans-serif" font-size="18" font-weight="normal">payout_destination_id</text>
+<rect x="1125" y="140" width="595" height="112" fill="white" stroke="black" stroke-width="2"/>
+<text x="1145" y="176" fill="black" font-family="Arial,sans-serif" font-size="26" font-weight="bold">payout_destinations</text>
+<text x="1145" y="210" fill="black" font-family="Arial,sans-serif" font-size="22" font-weight="normal">key: payout_destination_id</text>
+<text x="1145" y="238" fill="black" font-family="Arial,sans-serif" font-size="18" font-weight="normal">referenced table</text>
+<path d="M810 345 H1110" fill="none" stroke="black" stroke-width="2" marker-end="url(#a)"/>
+<text x="835" y="312" fill="black" font-family="Arial,sans-serif" font-size="18" font-weight="normal">reservation_id</text>
+<rect x="1125" y="290" width="595" height="112" fill="white" stroke="black" stroke-width="2"/>
+<text x="1145" y="326" fill="black" font-family="Arial,sans-serif" font-size="26" font-weight="bold">fund_reservations</text>
+<text x="1145" y="360" fill="black" font-family="Arial,sans-serif" font-size="22" font-weight="normal">key: reservation_id</text>
+<text x="1145" y="388" fill="black" font-family="Arial,sans-serif" font-size="18" font-weight="normal">referenced table</text>
+<text x="40" y="602" fill="black" font-family="Arial,sans-serif" font-size="22" font-weight="normal">PK = primary key; FK = foreign key. Constraints, defaults and indexes are in the separate reference.</text>
+</svg>

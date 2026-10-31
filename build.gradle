@@ -28,6 +28,8 @@ dependencies {
     // AWS SDK v2: aligned with the existing PayMesh production learning lab.
     // Libraries only: credentials stay outside the project; no resources are created.
     implementation platform('software.amazon.awssdk:bom:2.57.7')
+    implementation 'software.amazon.awssdk:dynamodb'
+    implementation 'software.amazon.awssdk:dynamodb-enhanced'
     implementation 'software.amazon.awssdk:sqs'
     implementation 'software.amazon.awssdk:sns'
     implementation 'software.amazon.awssdk:kinesis'

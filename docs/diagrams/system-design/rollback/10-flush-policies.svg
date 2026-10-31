@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="950" viewBox="0 0 1200 950" role="img" aria-labelledby="title desc">
+<title id="title">FLUSH POLICIES: when synchronization happens</title>
+<desc id="desc">Comparison, not a sequence of four steps. A flush policy controls synchronization, not the business commit boundary.</desc>
+<rect width="1200" height="950" fill="white"/>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="black"/></marker></defs>
+<text x="600" y="54" text-anchor="middle" font-family="Arial,sans-serif" font-size="31" font-weight="bold" fill="black">FLUSH POLICIES: when synchronization happens</text>
+<text x="600" y="97" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Comparison, not a sequence of four steps</text>
+<rect x="50" y="140" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="174" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">AUTO — normal starting point</text>
+<text x="600" y="208" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Flush before commit and when needed before queries.</text>
+<text x="600" y="242" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">JPA option; exact query triggers depend on API and provider.</text>
+<rect x="50" y="300" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="334" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">COMMIT — favour synchronization at completion</text>
+<text x="600" y="368" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Flush on commit; do not rely on queries seeing pending edits.</text>
+<text x="600" y="402" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">JPA option; it does not promise that SQL always waits.</text>
+<rect x="50" y="460" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="494" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">ALWAYS — Hibernate-specific</text>
+<text x="600" y="528" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Flush before queries and on commit.</text>
+<text x="600" y="562" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Can add work; choose only for a demonstrated requirement.</text>
+<rect x="50" y="620" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="654" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">MANUAL — Hibernate-specific</text>
+<text x="600" y="688" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">The application explicitly requests flushing.</text>
+<text x="600" y="722" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Pending changes can be omitted if no flush occurs.</text>
+<text x="600" y="880" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="bold" fill="black">A flush policy controls synchronization, not the business commit boundary.</text>
+<text x="600" y="922" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="normal" fill="black">Conceptual teaching diagram. No execution times or tested outcomes are implied.</text>
+</svg>

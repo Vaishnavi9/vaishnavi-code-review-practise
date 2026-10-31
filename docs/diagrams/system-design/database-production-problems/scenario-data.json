@@ -1,0 +1,1252 @@
+[
+  {
+    "cat": "01-query-shape-and-fetching",
+    "slug": "01-n-plus-one",
+    "title": "N+1: a separate query for each row",
+    "analogy": "Ordering one item per trip makes ten items take ten trips. Here each trip is a database round trip and each extra item is a lazy association.",
+    "requirement": "Render a bounded payment list with merchant names without one extra query per payment.",
+    "trigger": "A page is fast with one payment but slows with many distinct merchants; SQL count grows with returned rows.",
+    "wrong": "// Fragment: hypothetical Payment -> Merchant lazy to-one relation.\nList<Payment> rows = em.createQuery(\"select p from Payment p\", Payment.class)\n    .setMaxResults(3).getResultList();\nfor (Payment p : rows) render(p.getMerchant().getName());",
+    "fix": "// Jakarta Persistence EntityManager em, active read transaction.\n// A to-one fetch does not multiply each root by a collection.\nList<Payment> rows = em.createQuery(\n    \"select p from Payment p join fetch p.merchant order by p.id\", Payment.class)\n    .setMaxResults(3).getResultList();\nfor (Payment p : rows) render(p.getMerchant().getName());",
+    "bad": [
+      "1. Query payments P1, P2, P3; distinct merchants M1, M2, M3",
+      "2. Access P1.merchant.name: SELECT merchant M1",
+      "3. Access P2.merchant.name: SELECT merchant M2",
+      "4. Access P3.merchant.name: SELECT merchant M3; four SELECTs total"
+    ],
+    "good": [
+      "1. Declare the required to-one relationship in the query",
+      "2. One joined SELECT returns three payments and merchants",
+      "3. Read names from already loaded objects",
+      "4. Result contract unchanged; no per-row merchant SELECT"
+    ],
+    "why": "The loop accesses an unloaded relationship. The changed query loads that specific relationship with the roots. The four-query count assumes three distinct uncached merchants, no second-level/query cache and a cold persistence context.",
+    "limits": "A DTO projection avoids entity materialisation; batch fetching reduces round trips but is not necessarily one query. Do not globally make every association eager. Other relationships and serializers can still introduce N+1. Current Transaction has no associations.",
+    "check": "Clear the persistence context and caches between variants. Seed three distinct merchants and payments. Count SELECTs across both query and rendering, assert equal outputs and four versus one for this isolated fixture. Repeat with shared merchants; the count may differ. Watch SELECTs/request and p95, not SQL logging alone.",
+    "source": [
+      "fetch",
+      "jpa"
+    ],
+    "lang": "java",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "01-query-shape-and-fetching",
+    "slug": "02-collection-pagination",
+    "title": "Collection fetch join and pagination",
+    "analogy": "A shop receipt spans several lines; taking ten lines is not taking ten receipts. Joined child rows are receipt lines, while a page promises parent records.",
+    "requirement": "Return 20 distinct roots with complete children and stable ordering.",
+    "trigger": "A collection fetch with a page can cause in-memory limiting, excessive reads, warnings or an exception if configured to fail.",
+    "wrong": "// Hypothetical Payment has a to-many operations collection.\nem.createQuery(\"select p from Payment p join fetch p.operations\", Payment.class)\n  .setMaxResults(20).getResultList();",
+    "fix": "// Two-query algorithm, not a drop-in method.\nids = queryPaymentIdsWithTenantFilterOrderByCreatedAtThenId(limit20);\nif (ids.isEmpty()) return emptyList();\nrows = fetchPaymentsAndOperationsWhereIdIn(ids);\nreturn restoreOrderOfIds(rows, ids);",
+    "bad": [
+      "1. Query joins payments with many operations",
+      "2. One root occupies multiple SQL rows",
+      "3. ORM may retrieve far more rows to preserve collections",
+      "4. Small page request consumes large time and memory"
+    ],
+    "good": [
+      "1. Page only root IDs in deterministic order",
+      "2. Fetch children for this bounded set of IDs",
+      "3. Deduplicate roots if needed and restore page order",
+      "4. Return 20 roots with complete collections"
+    ],
+    "why": "Separate selecting the page from loading its graph. Retain tenant predicates. Use one suitable snapshot if the contract requires both reads to see an identical point in time.",
+    "limits": "Two reads allow intervening changes under Read Committed. A DTO query or separate bounded children query may be simpler. Count totals separately only when required. Joining two collections can multiply rows severely.",
+    "check": "Seed roots with different child counts; assert root count, unique IDs and complete children. Inspect SQL rows fetched. Turn on Hibernate fail_on_pagination_over_collection_fetch in a dedicated test to catch accidental regression.",
+    "source": [
+      "fetch"
+    ],
+    "lang": "text",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "01-query-shape-and-fetching",
+    "slug": "03-keyset-pages",
+    "title": "Unbounded reads, offset cost and unstable pages",
+    "analogy": "Reading a whole library to answer one page request wastes effort. A bookmark lets the next request start after the last known item.",
+    "requirement": "Bound memory and page work; define behaviour when data changes between pages.",
+    "trigger": "findAll materialises growing data; deep OFFSET reads/discards earlier rows; sorting by timestamp alone has ties.",
+    "wrong": "SELECT * FROM payments ORDER BY created_at OFFSET 1000000 LIMIT 50;",
+    "fix": "-- Named parameters are illustrative: bind them with a database client.\nSELECT id, created_at FROM payments\nWHERE merchant_id = :merchant\n  AND (created_at, id) > (:last_time, :last_id)\nORDER BY created_at, id LIMIT 50;\n-- For this pattern consider an index on (merchant_id, created_at, id).",
+    "bad": [
+      "1. Data grows; client asks for a deep page",
+      "2. OFFSET scans and discards many earlier results",
+      "3. Concurrent changes shift row positions",
+      "4. Slow pages can skip or repeat entries"
+    ],
+    "good": [
+      "1. First page uses tenant filter, stable ordering and LIMIT",
+      "2. Return opaque cursor containing last time and ID",
+      "3. Next page uses the same filters and tuple comparison",
+      "4. Read after the cursor with bounded result memory"
+    ],
+    "why": "The ID breaks timestamp ties; the cursor must preserve all ordering/filter semantics. Validate cursor ownership and limits. Keyset pagination helps sequential navigation; it is not an exact snapshot of a changing collection.",
+    "limits": "Use immutable ordering fields, or updates can move rows across the cursor. A report needing one stable snapshot needs a different export/snapshot design. Keyset does not provide arbitrary page numbers or total count cheaply.",
+    "check": "Test tied timestamps, deleted rows, newly inserted rows, and tenant changes. Compare EXPLAIN plans at increasing depths on a disposable dataset; record rows scanned, buffers and latency.",
+    "source": [
+      "index",
+      "plan"
+    ],
+    "lang": "sql",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "02-indexes-and-plans",
+    "slug": "04-index-access-pattern",
+    "title": "An index that does not match the query",
+    "analogy": "A phone book sorted by surname is awkward for searching by street. A database index is also ordered for particular access patterns.",
+    "requirement": "Find one merchant\u2019s recent payments without assuming any index guarantees speed.",
+    "trigger": "A growing table makes a frequently used filter/order query slow; extra indexes also slow writes.",
+    "wrong": "CREATE INDEX payments_status_only ON payments(status);\nSELECT * FROM payments WHERE merchant_id = :m ORDER BY created_at DESC, id DESC LIMIT 20;",
+    "fix": "-- Proposed index for this particular filter and ordering.\nCREATE INDEX payments_merchant_recent ON payments(merchant_id, created_at DESC, id DESC);\n-- Measure the same parameterised SELECT before and after on a scratch dataset.",
+    "bad": [
+      "1. Query filters by merchant and orders by time",
+      "2. Status index does not match these leading needs",
+      "3. Planner may scan and sort many rows",
+      "4. More data increases latency and database work"
+    ],
+    "good": [
+      "1. Inspect actual WHERE and ORDER BY",
+      "2. Evaluate matching composite index on realistic data",
+      "3. Compare plan, rows, buffers and write cost",
+      "4. Keep only useful indexes; monitor usage over time"
+    ],
+    "why": "Column ordering and selectivity matter. A matching B-tree can supply filtered ordered rows, but the planner chooses based on costs and data. Do not force an index solely because a sequential scan appears.",
+    "limits": "Small tables and broad filters may favour scans. Existing indexes may already cover the query. Build strategies and locking must be reviewed before a production migration. No index has been installed by this guide.",
+    "check": "Use EXPLAIN without ANALYZE first. EXPLAIN ANALYZE executes the query, including writes; use it only on safe reads or isolated fixtures. Refresh statistics when appropriate and compare representative skewed merchants.",
+    "source": [
+      "index",
+      "plan"
+    ],
+    "lang": "sql",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "02-indexes-and-plans",
+    "slug": "05-functions-and-plans",
+    "title": "Function filters and stale planning assumptions",
+    "analogy": "Changing every label before searching defeats a catalogue organised by the original labels. A function on an indexed column can similarly require different indexing.",
+    "requirement": "Search case-insensitively with explicitly chosen matching semantics.",
+    "trigger": "A lookup uses lower(column) while only a plain column index exists; a deployment may also change data distribution.",
+    "wrong": "SELECT id FROM merchants WHERE lower(name) = lower(:name);\n-- Assume the ordinary index on name makes this efficient.",
+    "fix": "-- Hypothetical schema: name is text. Check the actual query plan.\nCREATE INDEX merchants_lower_name ON merchants(lower(name));\nSELECT id FROM merchants WHERE lower(name) = lower(:name);",
+    "bad": [
+      "1. Application transforms the search column with lower",
+      "2. Ordinary index may not support that expression lookup",
+      "3. Database evaluates many candidate rows",
+      "4. High traffic amplifies unnecessary CPU and reads"
+    ],
+    "good": [
+      "1. Define case and collation semantics",
+      "2. Match query expression with an expression index",
+      "3. Check representative plans and refreshed statistics",
+      "4. Measure improvement rather than assuming it"
+    ],
+    "why": "An expression index stores the searched expression. Alternatively store a separately normalised lookup key. Parameter types should match column types to avoid unwanted casts.",
+    "limits": "This does not fix leading-wildcard text search, incorrect joins, sort spills or low selectivity. Those require separate plan evidence. Normalisation and collation must preserve the product\u2019s identity rules.",
+    "check": "Compare plans for common and rare values; inspect estimated versus actual rows, sort spills and buffers on synthetic data. Observe query-level latency and execution frequency, not just one fast run.",
+    "source": [
+      "expression",
+      "plan"
+    ],
+    "lang": "sql",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "03-transactions-and-locking",
+    "slug": "06-self-invocation",
+    "title": "Transactional method called through this",
+    "analogy": "A security desk cannot check a visitor who bypasses the entrance. Spring\u2019s normal proxy similarly cannot intercept a direct call inside the same object.",
+    "requirement": "A two-write service operation must use one real transaction.",
+    "trigger": "A helper carries @Transactional but an unannotated method in the same object calls it; individual repository transactions can commit separately.",
+    "wrong": "public void createBoth() { this.writeBoth(); }\n@Transactional\npublic void writeBoth() { repo.save(a); repo.save(b); }",
+    "fix": "// Import org.springframework.transaction.annotation.Transactional.\n// Method must be invoked through the Spring-managed service proxy.\n@Transactional\npublic void createBoth() {\n    repo.save(a);\n    repo.save(b);\n}",
+    "bad": [
+      "1. Caller enters unannotated service method",
+      "2. this.writeBoth bypasses proxy interception",
+      "3. No service transaction is established by that annotation",
+      "4. Separate repository commits can leave only the first write"
+    ],
+    "good": [
+      "1. Caller invokes annotated public method through Spring bean",
+      "2. Transaction interceptor starts or joins one transaction",
+      "3. Both participating saves use that transaction",
+      "4. Failure requesting rollback discards both changes"
+    ],
+    "why": "Move the transaction boundary to the actual external service entry point, or call a separate injected transactional bean. This describes proxy mode, not AspectJ weaving.",
+    "limits": "An existing outer transaction can change the outcome. Self-invocation does not erase an already active transaction. External network calls are not undone, and readOnly is not an authorization control.",
+    "check": "Invoke through the Spring context, inject failure between two writes, and read committed state through a new transaction. Do not put the entire test in a rollback-only outer test transaction.",
+    "source": [
+      "proxy"
+    ],
+    "lang": "java",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "03-transactions-and-locking",
+    "slug": "07-exception-rules",
+    "title": "Checked exceptions and swallowed failures",
+    "analogy": "A supervisor can act only on a reported failure and the agreed rules. Catching a failure and declaring success hides that signal.",
+    "requirement": "Business rejection must not accidentally commit partial work.",
+    "trigger": "A checked business exception escapes with default rules; or a catch block converts a failure to a success response.",
+    "wrong": "@Transactional\npublic void approve() throws ReviewRejected {\n    repo.save(a);\n    throw new ReviewRejected(); // hypothetical checked exception\n}",
+    "fix": "// ReviewRejected extends Exception; call through the proxy.\n@Transactional(rollbackFor = ReviewRejected.class)\npublic void approve() throws ReviewRejected {\n    repo.save(a);\n    throw new ReviewRejected();\n}",
+    "bad": [
+      "1. Method starts a transaction and writes A",
+      "2. A checked exception escapes",
+      "3. Default rule does not request rollback for that type",
+      "4. Commit can be attempted if transaction remains viable"
+    ],
+    "good": [
+      "1. Define the business failure type",
+      "2. Configure a type-based rollback rule",
+      "3. Let failure cross the transaction boundary",
+      "4. Verify A was not committed and return rejection"
+    ],
+    "why": "Default Spring rules request rollback for RuntimeException and Error. Use specific rollbackFor classes for checked failures. Global configuration can change defaults; inspect it before diagnosing.",
+    "limits": "noRollbackFor does not revive a transaction already aborted by PostgreSQL. Catching a persistence failure and continuing is not a repair. Programmatic rollback-only is another option when an explicit rejected result is intended.",
+    "check": "Compare checked and unchecked exceptions and a caught exception. Assert persisted rows and API result, not only thrown exception. Record actual configured transaction manager and rules.",
+    "source": [
+      "rollback"
+    ],
+    "lang": "java",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "03-transactions-and-locking",
+    "slug": "08-failed-transaction",
+    "title": "Catching a constraint error does not repair a transaction",
+    "analogy": "A failed safety inspection leaves the work blocked until it is reset. Continuing paperwork does not remove the failed status.",
+    "requirement": "Recover from conflicts without reporting a failed transaction as committed.",
+    "trigger": "Code catches a duplicate-key exception then performs another query in the same aborted transaction; or inner REQUIRED marks rollback-only.",
+    "wrong": "@Transactional\npublic void saveOrFind() {\n    try { repo.saveAndFlush(newRow); }\n    catch (DataIntegrityViolationException e) { repo.findById(id); }\n}",
+    "fix": "// Algorithm: transactionTemplate owns the transaction; no outer transaction.\ntry {\n    return writeInOwnTransaction(command);\n} catch (KnownDuplicateRequestConflict conflict) {\n    return readAndCompareInFreshTransaction(command);\n}",
+    "bad": [
+      "1. Transaction T1 tries a write",
+      "2. Immediate constraint fails; T1 is aborted",
+      "3. Java catch block runs, but T1 remains failed",
+      "4. Further SQL or eventual commit fails"
+    ],
+    "good": [
+      "1. Let failed T1 finish rollback",
+      "2. Classify the specific expected constraint conflict",
+      "3. Start fresh T2 and read the winning row",
+      "4. Compare payload before returning a replay"
+    ],
+    "why": "The recovery boundary is outside the failed database transaction. Do not translate every integrity exception to an idempotency hit: NOT NULL, CHECK and unrelated unique constraints mean different things.",
+    "limits": "The algorithm requires actual new transaction ownership, not a same-object annotated call. Savepoints can recover SQL state in a deliberate JDBC design, but do not rewind Hibernate managed objects.",
+    "check": "Force a real unique violation, assert later SQL in T1 fails, then confirm a fresh transaction can read. For Spring inner REQUIRED, separately assert UnexpectedRollbackException at outer completion.",
+    "source": [
+      "propagation",
+      "locks"
+    ],
+    "lang": "text",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "03-transactions-and-locking",
+    "slug": "09-deadlocks",
+    "title": "Deadlocks and whole-transaction retry",
+    "analogy": "Two people each hold the key the other needs. Neither can progress until one gives up its work.",
+    "requirement": "Transfer between accounts without indefinite waiting or partial effects.",
+    "trigger": "T1 locks account A then requests B; T2 locks B then requests A.",
+    "wrong": "-- T1: lock A; then lock B\n-- T2: lock B; then lock A",
+    "fix": "-- Both transactions use the same global ordering.\nSELECT id FROM accounts WHERE id IN (:a, :b) ORDER BY id FOR UPDATE;\n-- Apply the balanced transfer within this transaction.\n-- On deadlock/serialization failure: rollback, bounded retry of whole unit.",
+    "bad": [
+      "1. T1 holds A; T2 holds B",
+      "2. T1 waits for B",
+      "3. T2 waits for A; cycle exists",
+      "4. Database aborts a participant; application must handle failure"
+    ],
+    "good": [
+      "1. All writers acquire account locks in ascending ID order",
+      "2. Keep the transaction short",
+      "3. On a retryable database conflict, end failed transaction",
+      "4. Retry the complete idempotent unit with a bounded policy"
+    ],
+    "why": "Consistent lock order removes this particular cycle. Re-read values and rerun business checks inside the new attempt. Use SQLSTATE classification such as deadlock 40P01 and serialization 40001.",
+    "limits": "Other tables and triggers can introduce different lock paths. Lock timeout 55P03 is not identical to deadlock. Do not blindly retry external charging. Monitor lock waits, retries and exhausted attempts.",
+    "check": "Use two coordinated connections with barriers, not sleeps, to establish opposite locks. Assert an aborted participant and no partial transfer. Then repeat using one ordering and verify both valid operations complete.",
+    "source": [
+      "locks",
+      "iso"
+    ],
+    "lang": "sql",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "04-idempotency-and-concurrency",
+    "slug": "10-duplicate-insert",
+    "title": "Check then insert is not atomic",
+    "analogy": "Two cashiers can both see the last ticket before either sells it. Only one shared reservation rule can decide the winner.",
+    "requirement": "At most one row for a merchant/request key, even across application instances.",
+    "trigger": "Two requests both see an absent key and attempt insertion.",
+    "wrong": "if (repo.findByMerchantIdAndRequestKey(merchant, key).isEmpty()) {\n    repo.save(new Transaction(merchant, key, amount, currency));\n}",
+    "fix": "-- Existing schema has UNIQUE (merchant_id, request_key).\nINSERT INTO paymesh.transactions(id,merchant_id,request_key,amount_minor,currency)\nVALUES (:id,:merchant,:key,:amount,:currency)\nON CONFLICT (merchant_id,request_key) DO NOTHING\nRETURNING id;\n-- If no ID: issue a separate SELECT in Read Committed, then compare payload.\n-- Require a retention rule so the winning row cannot disappear during replay.",
+    "bad": [
+      "1. Request A reads key K: absent",
+      "2. Request B reads key K: absent",
+      "3. Both try INSERT; Java checks did not serialize them",
+      "4. Unique constraint allows one; loser needs deliberate handling"
+    ],
+    "good": [
+      "1. Both requests attempt an atomic insert under the unique key",
+      "2. PostgreSQL resolves the competing key",
+      "3. Winner receives ID; loser reads winner in a fresh statement",
+      "4. Equal payload replays; changed payload is rejected"
+    ],
+    "why": "The database unique constraint is the arbiter. A Java synchronized block cannot protect multiple application instances. NOT NULL prevents missing values; it does not replace uniqueness.",
+    "limits": "DO NOTHING does not return the existing row. A same-statement CTE can fail to see a concurrent winner due to snapshot timing. Higher isolation can require whole-transaction retry. This creates a local record, not an exactly-once external charge.",
+    "check": "Coordinate two connections inserting the same key and assert one row. Repeat with different merchants (two rows) and different payload (one row plus explicit conflict handling). See executable SQL checks for local uniqueness evidence.",
+    "source": [
+      "insert",
+      "iso",
+      "constraint"
+    ],
+    "lang": "sql",
+    "scope": "Relevant to the current create method: it inserts a new UUID each call; database uniqueness is present, but replay/conflict handling is not implemented."
+  },
+  {
+    "cat": "04-idempotency-and-concurrency",
+    "slug": "11-payload-and-tenant",
+    "title": "Same idempotency key, different intent",
+    "analogy": "A ticket number cannot silently change from one journey to another. A request key similarly names one business intent within its owner\u2019s scope.",
+    "requirement": "Same merchant and key with different amount or currency must be rejected, not replayed as success.",
+    "trigger": "A client accidentally reuses a key, or another merchant uses the same text key.",
+    "wrong": "return repo.findByRequestKey(key).orElseGet(() -> create(command));\n// Wrong: no merchant scope and no payload comparison.",
+    "fix": "// Fragment: merchant comes from authenticated authorization context.\nTransaction existing = repo.findByMerchantIdAndRequestKey(merchant, key)\n    .orElseThrow();\nif (existing.getAmountMinor() != amount || !existing.getCurrency().equals(currency)) {\n    throw new IllegalArgumentException(\"Request key reused for different payment\");\n}\nreturn existing;",
+    "bad": [
+      "1. Key K belongs to merchant A and amount 100",
+      "2. Caller sends K with amount 900, or another merchant",
+      "3. Lookup uses only K and blindly replays",
+      "4. Response refers to wrong intent or leaks another merchant\u2019s data"
+    ],
+    "good": [
+      "1. Resolve authorized merchant from trusted identity",
+      "2. Look up composite merchant and request key",
+      "3. Compare all immutable intent fields in the API contract",
+      "4. Equal intent replays; mismatch returns a defined conflict"
+    ],
+    "why": "For the current four-input constructor, amount and currency distinguish intent once merchant/key identify the row. A richer API must also include recipient, operation type and other semantic fields. Do not trust a client-supplied merchant claim alone.",
+    "limits": "Canonical payload hashing is useful for richer payloads but requires stable normalization and field definitions. A random request key does not authorize access. Retention/expiry must be part of the API contract.",
+    "check": "Test equal retry, changed amount, changed currency and same key for two merchants. Test a malicious merchant ID header against authenticated identity. Verify errors contain no other merchant\u2019s data.",
+    "source": [
+      "constraint"
+    ],
+    "lang": "java",
+    "scope": "Current finder is merchant-scoped. Payload comparison and authentication-to-merchant binding are not demonstrated by the current create method."
+  },
+  {
+    "cat": "04-idempotency-and-concurrency",
+    "slug": "12-lost-update",
+    "title": "Two writers overwrite each other",
+    "analogy": "Two editors start from the same draft and the second save erases the first edit. A version number tells the second editor that the draft changed.",
+    "requirement": "A concurrent update must not silently erase another committed update.",
+    "trigger": "Both requests read version 0; both write a value derived from that stale state.",
+    "wrong": "UPDATE accounts SET balance_minor = :previously_calculated_balance WHERE id = :id;",
+    "fix": "-- Hypothetical accounts fixture; version is a required bigint column.\nUPDATE accounts SET balance_minor = :next_balance, version = version + 1\nWHERE id = :id AND version = :version_read;\n-- Require exactly one affected row; zero means reload/re-evaluate or conflict.\n-- JPA equivalent for entity updates: @jakarta.persistence.Version Long version;",
+    "bad": [
+      "1. T1 and T2 read balance 100, version 0",
+      "2. T1 computes 90; T2 computes 80",
+      "3. Both unconditional UPDATEs succeed",
+      "4. Last write wins; one intended change is lost"
+    ],
+    "good": [
+      "1. Both reads include version 0",
+      "2. First UPDATE matches and advances version to 1",
+      "3. Second UPDATE with version 0 affects zero rows",
+      "4. Caller reloads and rechecks intent before retry or conflict"
+    ],
+    "why": "The version predicate makes the check and write atomic. Check the affected-row count. Hibernate @Version implements optimistic locking for supported entity operations; bulk/custom SQL must preserve the invariant explicitly.",
+    "limits": "A version conflict does not mean retry the stale calculated value. Atomic arithmetic updates or pessimistic locking can fit other requirements. @Version alone does not prevent cross-row write skew.",
+    "check": "Coordinate two readers before either writes; assert only one version-0 update wins. Re-read committed state. Repeat with independent rows to ensure unnecessary conflicts are not introduced.",
+    "source": [
+      "iso",
+      "jpaspec"
+    ],
+    "lang": "sql",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "04-idempotency-and-concurrency",
+    "slug": "13-refund-limit",
+    "title": "Concurrent refunds exceed the captured amount",
+    "analogy": "Two people both see room in a jar and each fills it beyond its limit. Reserve capacity as part of adding, not in a separate earlier glance.",
+    "requirement": "Total refund reservations must not exceed captured funds.",
+    "trigger": "Two concurrent refunds both pass a stale available-balance check.",
+    "wrong": "-- Both read captured=100, reserved=0, then each reserve 80.\nUPDATE refund_budget SET reserved = reserved + 80 WHERE payment_id = :id;",
+    "fix": "-- Hypothetical fixture: captured>=0 and 0<=reserved<=captured.\nUPDATE refund_budget SET reserved = reserved + :amount\nWHERE payment_id = :id AND :amount > 0\n  AND reserved <= captured - :amount\nRETURNING reserved;\n-- Require one result. Insert a uniquely keyed refund operation in the same TX.",
+    "bad": [
+      "1. A and B each request refund 80 against capture 100",
+      "2. Both separately read available 100",
+      "3. Both increment reserved without a guard",
+      "4. Combined reservation becomes 160, violating the limit"
+    ],
+    "good": [
+      "1. A and B submit guarded atomic updates",
+      "2. First update reserves 80",
+      "3. Second rechecks predicate and gets no row",
+      "4. One refund is accepted; other is rejected or remains unreserved"
+    ],
+    "why": "The predicate and increment are one database operation. Pair it with a unique operation key in the same transaction: guarded increments are not themselves idempotent if the same request is retried.",
+    "limits": "A provider refund is a separate external effect; failed/unknown submission needs its own state machine and reconciliation. Currency and capture identity must match. Signed bigint overflow and input bounds still require validation.",
+    "check": "Coordinate two transactions requesting 80 from 100. Assert one reservation, final reserved=80, and a rejected second result. Retry the same operation key and assert no second reservation.",
+    "source": [
+      "iso",
+      "constraint"
+    ],
+    "lang": "sql",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "04-idempotency-and-concurrency",
+    "slug": "14-write-skew",
+    "title": "Cross-row invariants and write skew",
+    "analogy": "Two guards each leave because the other appears to be present. Checking separate rows does not protect the rule that someone must stay.",
+    "requirement": "Keep at least one available processing route for a merchant.",
+    "trigger": "Two concurrent transactions disable different routes after each sees the other enabled.",
+    "wrong": "-- Snapshot: both route A and route B are enabled.\n-- T1 checks B, disables A. T2 checks A, disables B.",
+    "fix": "-- Option: serialize all route edits for the merchant on a parent row.\nBEGIN ISOLATION LEVEL READ COMMITTED;\nSELECT id FROM merchants WHERE id = :m FOR UPDATE;\n-- Now read routes, validate at least one remains, then update.\nCOMMIT;\n-- Every writer must follow this same locking protocol.",
+    "bad": [
+      "1. T1 and T2 each see two enabled routes",
+      "2. T1 disables A; T2 disables B",
+      "3. Updates touch different rows; row versions may not conflict",
+      "4. No route remains enabled"
+    ],
+    "good": [
+      "1. T1 locks the merchant coordination row",
+      "2. T2 waits before checking routes",
+      "3. T1 validates and commits its change",
+      "4. T2 rechecks current state and rejects removing the last route"
+    ],
+    "why": "This invariant spans rows, so per-row versioning alone is insufficient. A shared coordination row makes the check and change serial for that merchant.",
+    "limits": "Serializable transactions with complete retries are an alternative. All writers must participate. Isolation reduces anomalies but does not invent business validation. Parent locking can limit throughput for a hot merchant.",
+    "check": "Coordinate two transactions checking different route rows. Reproduce both disabled without coordination; assert one remains using parent locking. Also test a writer that bypasses the protocol to expose the assumption.",
+    "source": [
+      "iso",
+      "locks"
+    ],
+    "lang": "sql",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "05-mapping-and-types",
+    "slug": "15-money-types",
+    "title": "Floating point, overflow and decimal scale",
+    "analogy": "Measuring coins with a stretched ruler introduces tiny errors. Binary floating point can similarly misrepresent exact decimal monetary inputs.",
+    "requirement": "Represent amounts exactly under a documented currency scale and range.",
+    "trigger": "Floating point multiplication/truncation loses a minor unit; fixed scale two is wrongly applied to every currency; integers overflow.",
+    "wrong": "long minor = (long) (Double.parseDouble(input) * 100);",
+    "fix": "// Imports: java.math.BigDecimal, java.math.RoundingMode.\n// fractionDigits comes from supported currency metadata, not always 2.\nlong minor = new BigDecimal(input)\n    .setScale(fractionDigits, RoundingMode.UNNECESSARY)\n    .movePointRight(fractionDigits).longValueExact();\nif (minor <= 0) throw new IllegalArgumentException(\"Amount must be positive\");",
+    "bad": [
+      "1. Parse decimal input as binary floating point",
+      "2. Multiply and truncate toward zero",
+      "3. Precision loss or overflow changes the intended amount",
+      "4. Stored payment no longer matches the customer instruction"
+    ],
+    "good": [
+      "1. Parse original string as exact decimal",
+      "2. Reject unsupported fractional precision",
+      "3. Convert to minor units with an exact range check",
+      "4. Validate positivity, currency and product limits"
+    ],
+    "why": "UNNECESSARY rejects implicit rounding; longValueExact rejects overflow. The API may already accept minor units, in which case no major-to-minor conversion is required. Monetary arithmetic also needs overflow-safe addition.",
+    "limits": "Some products intentionally round; define the mode and when it applies. Currency format alone does not prove a supported currency. PostgreSQL numeric(p,s) may round input to its scale before range validation.",
+    "check": "Check 0.29 -> 29 at scale 2, excessive fractional digits, negative/zero, maximum range, and supported currencies with scale 0 or 3. Assert rejected inputs do not reach persistence.",
+    "source": [
+      "numeric"
+    ],
+    "lang": "java",
+    "scope": "Current amountMinor is long, not double. This is an input/conversion extension lesson; the current service does not perform this conversion."
+  },
+  {
+    "cat": "05-mapping-and-types",
+    "slug": "16-null-and-enum",
+    "title": "Nullable columns and unstable enum storage",
+    "analogy": "A missing answer is different from the answer zero. Likewise a numbered label changes meaning if the list of labels is reordered.",
+    "requirement": "Preserve missing values and stable meaning across releases.",
+    "trigger": "A nullable SQL number maps to a primitive; an ordinal enum changes after a new constant is inserted.",
+    "wrong": "long optionalFee; // cannot represent SQL NULL\n@Enumerated(EnumType.ORDINAL)\nPaymentStatus status;",
+    "fix": "// Imports: jakarta.persistence.Enumerated, jakarta.persistence.EnumType.\nLong optionalFee; // only when NULL is a valid domain state\n@Enumerated(EnumType.STRING)\nPaymentStatus status;\n// Database migration and allowed values must match the deployed enum names.",
+    "bad": [
+      "1. Database contains NULL or enum ordinal 1",
+      "2. Java expects a primitive or a reordered enum",
+      "3. Mapping fails or the value gets the wrong meaning",
+      "4. Old and new releases interpret data differently"
+    ],
+    "good": [
+      "1. Decide whether absence is allowed",
+      "2. Align wrapper/nullability or enforce NOT NULL in both layers",
+      "3. Store a stable code with a deliberate converter or enum name",
+      "4. Migrate existing values and test mixed-version compatibility"
+    ],
+    "why": "A wrapper represents null; it does not validate business rules. STRING avoids ordinal reordering, but renaming constants still requires a data/compatibility migration. Never silently change ordinal mapping over existing rows.",
+    "limits": "Stable external codes plus AttributeConverter can decouple names. Unknown future values need a defined policy. The current status field is String and the table only allows CREATED; neither bad mapping is present here.",
+    "check": "Read null and every allowed code, then an unknown code in an isolated fixture. Test old rows under the new mapping and verify safe migration rather than changing annotations alone.",
+    "source": [
+      "jpaspec"
+    ],
+    "lang": "java",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "05-mapping-and-types",
+    "slug": "17-time-and-defaults",
+    "title": "Time zones and database defaults",
+    "analogy": "A meeting time without its city is ambiguous. A local date-time without an offset similarly cannot identify one worldwide instant.",
+    "requirement": "Record an event instant consistently and know which layer supplies defaults.",
+    "trigger": "LocalDateTime is used for global events; an ORM sends NULL or a Java default and expects a SQL DEFAULT to replace it.",
+    "wrong": "LocalDateTime occurredAt = LocalDateTime.now();\n// INSERT ... created_at = NULL; assume DEFAULT now() is applied.",
+    "fix": "// Global event instant in Java; import java.time.Instant.\nInstant occurredAt = Instant.now();\n// PostgreSQL column: timestamp with time zone (timestamptz).\n// A DB default applies when column is omitted or SQL DEFAULT is used, not NULL.",
+    "bad": [
+      "1. Server records local wall-clock time without offset",
+      "2. Another zone or daylight-saving boundary interprets it",
+      "3. Intended instant is ambiguous or shifted",
+      "4. Reports and ordering disagree"
+    ],
+    "good": [
+      "1. Define event time versus local scheduled time",
+      "2. Use Instant for a global event and timestamptz in PostgreSQL",
+      "3. Choose application or database as the timestamp source",
+      "4. Verify round trips and tolerate precision differences"
+    ],
+    "why": "PostgreSQL timestamptz stores an instant, not the original zone ID. Store the zone separately if the business needs it. ORM-generated INSERT columns decide whether database defaults are used.",
+    "limits": "Clock skew means timestamps alone are not a causal ordering guarantee. PostgreSQL timestamp precision and Java nanoseconds may differ. Local appointments may require LocalDateTime plus a named zone instead.",
+    "check": "Round-trip a known instant under two session time zones, including a daylight-saving boundary. Compare explicit NULL with omitted column. Assert the intended precision rather than exact Java nanoseconds.",
+    "source": [
+      "date"
+    ],
+    "lang": "java",
+    "scope": "The current entity uses Instant and generates createdAt in its constructor. The database also has a default; document which path supplies the value."
+  },
+  {
+    "cat": "05-mapping-and-types",
+    "slug": "18-detached-merge",
+    "title": "save can merge and return a different managed object",
+    "analogy": "Handing in a photocopy does not make it the original record. Merge copies state into a managed object and returns that object.",
+    "requirement": "Modify the correct managed entity and avoid accidental overwrite from incomplete detached objects.",
+    "trigger": "Code ignores the object returned by merge/save or constructs a partial entity with an existing ID.",
+    "wrong": "Transaction saved = repository.save(detached);\n// Later change detached and assume every change is tracked automatically.",
+    "fix": "// Conceptual update pattern for a mutable hypothetical entity.\n@Transactional\npublic void changeName(UUID id, String name) {\n    Merchant managed = em.find(Merchant.class, id);\n    if (managed == null) throw new IllegalArgumentException(\"Not found\");\n    managed.setName(name); // tracked within this persistence context\n}",
+    "bad": [
+      "1. Detached object has an existing identifier",
+      "2. save may use EntityManager.merge based on newness detection",
+      "3. Merge returns managed state; input is not made managed",
+      "4. Changes to the detached input can be lost or overwrite data on another merge"
+    ],
+    "good": [
+      "1. Load the authorized row in a transaction",
+      "2. Update only the permitted fields on the managed object",
+      "3. Include version checks where concurrency matters",
+      "4. Flush and verify committed state"
+    ],
+    "why": "Spring Data newness detection considers version/ID and optional Persistable rules. An assigned UUID alone does not guarantee persist is selected. Use the returned save result when applicable. A load-and-update avoids treating a partial payload as a complete entity.",
+    "limits": "Current Transaction has constructor-assigned UUID, no @Version, and no setters. The example uses a hypothetical mutable Merchant; do not paste it into the current model. Merge can still issue an INSERT for a new assigned-ID object.",
+    "check": "In a fixture, compare identity and EntityManager.contains for original versus returned object; inspect SQL and committed fields. Repeat for a missing ID and for a concurrent version conflict.",
+    "source": [
+      "jpaspec",
+      "jpa"
+    ],
+    "lang": "java",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "06-constraints-and-schema",
+    "slug": "19-constraints",
+    "title": "Annotations do not guarantee installed constraints",
+    "analogy": "A rule printed on a form does not install a lock on a door. Mapping metadata likewise does not prove the deployed database enforces that rule.",
+    "requirement": "Every write path must respect uniqueness, required data and valid references.",
+    "trigger": "A schema migration is missing, dirty rows prevent adding a constraint, or code assumes @Column creates constraints in every environment.",
+    "wrong": "@Column(unique = true, nullable = false)\nString requestKey;\n// Assume this enforces merchant-scoped uniqueness in every database.",
+    "fix": "-- Actual current business identity is a pair, not global request_key.\nALTER TABLE paymesh.transactions\nADD CONSTRAINT transactions_merchant_request_unique\nUNIQUE (merchant_id, request_key);\n-- Illustration only: this constraint ALREADY EXISTS; do not run this twice.",
+    "bad": [
+      "1. Code declares mapping metadata",
+      "2. Environment does not generate or migrate that constraint",
+      "3. Another writer inserts invalid data",
+      "4. Application assumption is violated in stored rows"
+    ],
+    "good": [
+      "1. Define the exact database invariant",
+      "2. Inspect catalog and existing data before migration",
+      "3. Apply a reviewed migration in the correct database",
+      "4. Test violations from a direct database client"
+    ],
+    "why": "The live snapshot confirms the current composite unique key, required columns and checks. SQLSTATE distinguishes 23505 unique, 23502 not-null, 23503 foreign-key and 23514 check errors. Do not treat all as the same business conflict.",
+    "limits": "CHECK expressions evaluating NULL do not substitute for NOT NULL. PostgreSQL foreign keys do not automatically create a child-column index. Deferrable constraints may fail at commit; validation of ORM mappings is not validation of every business invariant.",
+    "check": "Attempt each violation in a disposable transaction and assert its SQLSTATE and unchanged committed state. Verify definitions via catalog metadata, including deferrability and validated flags.",
+    "source": [
+      "constraint"
+    ],
+    "lang": "sql",
+    "scope": "Live constraints have been inspected and included in the schema snapshot. This is a diagnosis checklist, not evidence those constraints are missing."
+  },
+  {
+    "cat": "07-delete-and-lifecycle",
+    "slug": "20-cascade-and-orphans",
+    "title": "Cascade delete, orphan removal and shared children",
+    "analogy": "Removing a booking should not demolish the shared hotel. An entity association must distinguish owned children from shared resources.",
+    "requirement": "Delete only data that belongs exclusively to the deleted aggregate.",
+    "trigger": "CascadeType.REMOVE propagates through shared relationships; changing the inverse side alone leaves the owning foreign key unchanged.",
+    "wrong": "@ManyToMany(cascade = CascadeType.ALL)\nSet<PaymentMethod> sharedMethods;\n// Deleting one merchant may cascade REMOVE to shared methods.",
+    "fix": "// Hypothetical mapping; no REMOVE cascade for shared methods.\n@ManyToMany\nSet<PaymentMethod> sharedMethods;\n// Remove the association row, not the shared PaymentMethod entity.\n// For exclusively owned children, consider orphanRemoval with both sides maintained.",
+    "bad": [
+      "1. Two merchants refer to the same shared method",
+      "2. One merchant is removed with REMOVE cascade",
+      "3. ORM tries to remove the shared method too",
+      "4. FK failure or unintended shared-data deletion follows"
+    ],
+    "good": [
+      "1. Decide whether the child is owned or shared",
+      "2. Keep shared target lifecycle independent",
+      "3. Delete the owner\u2019s association only",
+      "4. Verify other owners and shared target remain intact"
+    ],
+    "why": "ORM cascade propagates entity operations; database ON DELETE CASCADE is a separate FK rule. orphanRemoval applies to supported owned associations when removed from the relationship. Maintain the owning side and in-memory inverse side consistently.",
+    "limits": "Financial history usually needs explicit retention policy, not blanket cascading. Soft delete adds filtering and uniqueness concerns. JPA bulk deletion bypasses individual entity callbacks and ORM cascades; database constraints still apply.",
+    "check": "Create two owners sharing one child. Delete one owner and verify the other association and child survive. Separately test owned-child orphan deletion and direct SQL parent deletion against actual FK actions.",
+    "source": [
+      "jpaspec",
+      "constraint"
+    ],
+    "lang": "java",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "07-delete-and-lifecycle",
+    "slug": "21-bulk-cache",
+    "title": "Bulk updates leave managed objects stale",
+    "analogy": "Changing the official register does not update a photocopy already on your desk. Bulk SQL similarly bypasses previously loaded entity state.",
+    "requirement": "Decisions after bulk updates must use fresh state without losing pending changes.",
+    "trigger": "A JPQL/native bulk update changes rows while the persistence context still contains old entity values.",
+    "wrong": "Merchant m = em.find(Merchant.class, id);\nem.createQuery(\"update Merchant m set m.enabled = false where m.id = :id\")\n  .setParameter(\"id\", id).executeUpdate();\nreturn m.isEnabled(); // may still be true in memory",
+    "fix": "// Within an active transaction; flush pending changes before clearing.\nem.flush();\nem.createQuery(\"update Merchant m set m.enabled = false where m.id = :id\")\n  .setParameter(\"id\", id).executeUpdate();\nem.clear();\nreturn em.find(Merchant.class, id).isEnabled();",
+    "bad": [
+      "1. Load enabled=true into persistence context",
+      "2. Bulk UPDATE sets database row to false",
+      "3. Existing managed object still says true",
+      "4. Later logic makes a stale decision"
+    ],
+    "good": [
+      "1. Flush intentional pending ORM changes",
+      "2. Execute guarded bulk update and inspect affected rows",
+      "3. Clear context or refresh relevant entity as appropriate",
+      "4. Read current transaction state before deciding"
+    ],
+    "why": "clear detaches all managed entities and can discard unflushed changes. Spring Data @Modifying offers flushAutomatically/clearAutomatically; both default false. Configure deliberately, not as a substitute for understanding the context.",
+    "limits": "Bulk updates also need explicit tenant, version and state predicates. Clearing does not automatically repair external caches. Large deletes need bounded batches and retention checks.",
+    "check": "Load a row, bulk update it, demonstrate stale field, then refresh/clear and reread. Include a separate pending unsaved change to prove your fix does not accidentally discard it.",
+    "source": [
+      "modifying",
+      "jpaspec"
+    ],
+    "lang": "java",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "08-pools-and-capacity",
+    "slug": "22-connection-leak",
+    "title": "Connections are not returned to the pool",
+    "analogy": "A library runs out of books when borrowers never return them. A connection pool likewise has a finite number of reusable connections.",
+    "requirement": "Return resources on success and failure without closing a transaction-owned connection incorrectly.",
+    "trigger": "A JDBC connection or result stream leaks on exceptions; active pool count stays high after requests finish.",
+    "wrong": "Connection c = dataSource.getConnection();\nPreparedStatement s = c.prepareStatement(sql);\nResultSet r = s.executeQuery();\n// No finally/close; an exception leaks resources.",
+    "fix": "// Standalone non-Spring-transaction JDBC ownership example.\ntry (Connection c = dataSource.getConnection();\n     PreparedStatement s = c.prepareStatement(\"select 1\");\n     ResultSet r = s.executeQuery()) {\n    if (r.next()) consume(r.getInt(1));\n}\n// In Spring-managed transactions, prefer JdbcTemplate / transaction-aware access.",
+    "bad": [
+      "1. Each request borrows one connection",
+      "2. Failure skips cleanup",
+      "3. Pool reaches its connection limit",
+      "4. New requests wait and time out without reaching SQL"
+    ],
+    "good": [
+      "1. Define which layer owns connection lifecycle",
+      "2. Use structured resource cleanup or Spring helpers",
+      "3. Close cursors and streams on all paths",
+      "4. Verify borrowed connections return after failures"
+    ],
+    "why": "AutoCloseable allows try-with-resources. JdbcTemplate manages JDBC resources and participates in Spring transactions. Direct getConnection can bypass the transaction-bound connection depending on the DataSource wrapper; do not mix access styles casually.",
+    "limits": "A pool timeout is not proof of a leak: slow queries, blocked locks or too much concurrency also occupy connections. Increasing pool size can worsen database overload.",
+    "check": "Inject exceptions during query and mapping; active connections should return to baseline. Track pool active/idle/pending, acquisition time and query duration. Distinguish idle-in-transaction from actually idle connections.",
+    "source": [
+      "jdbc",
+      "pool"
+    ],
+    "lang": "java",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "08-pools-and-capacity",
+    "slug": "23-pool-amplification",
+    "title": "Application scaling multiplies database connections",
+    "analogy": "Adding queues at a small kitchen does not add cooks. More application instances can simply send more work to the same database.",
+    "requirement": "Keep total database work and connection demand within measured capacity.",
+    "trigger": "Autoscaling grows from 5 to 50 instances while each maintains a large maximum pool; nested REQUIRES_NEW consumes additional connections.",
+    "wrong": "# Hypothetical budget: 50 instances * maximumPoolSize 30 = 1500 possible app connections.\n# Database budget for this app is only 300. Increasing pool size makes it worse.",
+    "fix": "# Capacity worksheet, not deployable configuration.\napp_connection_budget = database_limit - administration - other_clients - safety_headroom\nper_instance_limit <= app_connection_budget / maximum_simultaneous_instances\n# Include rolling-deployment surge, workers, and nested transaction demand.\n# Enforce admission limits; load-test the resulting budget.",
+    "bad": [
+      "1. Traffic triggers more app instances",
+      "2. Each instance has its own pool",
+      "3. Combined connections and query concurrency exceed DB capacity",
+      "4. Queueing, timeouts and retries amplify the incident"
+    ],
+    "good": [
+      "1. Measure DB throughput at acceptable latency",
+      "2. Budget connections across maximum instances and deployments",
+      "3. Bound admission, workers, and pool acquisition waiting",
+      "4. Scale only with evidence; reject overload predictably"
+    ],
+    "why": "A connection ceiling is not a throughput target. Database CPU, disk and lock contention can saturate before the connection limit. A suspended outer transaction can hold its connection while REQUIRES_NEW requests another.",
+    "limits": "Pooling proxies may help connection overhead, not unlimited query work. Avoid deep nesting and unrelated work inside transactions. Exact pool sizes require measurements, not a universal number.",
+    "check": "Run a controlled load staircase; record achieved throughput, p95/p99, active connections, pending requests and DB CPU/IO/locks. Test rolling deployment surge and refusal behaviour; distinguish offered load from completed work.",
+    "source": [
+      "propagation",
+      "pool"
+    ],
+    "lang": "text",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "08-pools-and-capacity",
+    "slug": "24-long-transaction",
+    "title": "Network calls hold database transactions open",
+    "analogy": "Holding the checkout counter while phoning someone blocks everyone behind you. A transaction can likewise hold locks during a slow remote call.",
+    "requirement": "Keep database transactions short and recover external payment outcomes safely.",
+    "trigger": "A provider slows down while a service transaction holds row locks and a database connection.",
+    "wrong": "@Transactional\npublic void submit() {\n    reserveFunds();\n    provider.charge(); // potentially slow and cannot be rolled back by the DB\n    markSuccessful();\n}",
+    "fix": "// Algorithm with durable state, not synchronous fake atomicity.\nTX1: reserve once; store payment intent and outgoing event; commit\nworker: call provider using stable operation identity and timeout\nTX2: record confirmed outcome with allowed-state guard; commit\nuncertain outcome: reconcile before issuing another money movement",
+    "bad": [
+      "1. Begin transaction and acquire locks",
+      "2. Call remote provider while transaction stays open",
+      "3. Slow provider holds local resources for a long time",
+      "4. Timeout may roll back local data after provider already charged"
+    ],
+    "good": [
+      "1. Commit durable intent and reservation locally",
+      "2. Perform external call outside the local DB transaction",
+      "3. Persist confirmed outcome in a short transaction",
+      "4. Reconcile uncertainty and deduplicate retries"
+    ],
+    "why": "The corrected algorithm exposes the distributed boundary instead of implying database rollback reverses a remote charge. It requires worker recovery, provider idempotency where supported, and an explicit pending state.",
+    "limits": "This is a broader design, not a drop-in method. A brief synchronous call may fit another contract, but timeout uncertainty still exists. Limit transaction duration and monitor lock ages.",
+    "check": "Inject provider delay and a crash after provider success but before local outcome save. Verify the retry uses the same operation identity and recovery does not double-charge. SQL-only tests cannot prove provider behaviour.",
+    "source": [
+      "outbox",
+      "saga"
+    ],
+    "lang": "text",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "09-consistency-and-caches",
+    "slug": "25-stale-read",
+    "title": "Read replica and cache lag after a write",
+    "analogy": "A noticeboard copied every minute can lag behind the official register. A replica or cache can similarly be temporarily stale.",
+    "requirement": "A freshly accepted payment must not be treated as missing or safe to recreate because a read is stale.",
+    "trigger": "POST commits to primary; immediate GET reads a lagging replica or old cache entry.",
+    "wrong": "if (replica.findPayment(key).isEmpty()) {\n    submitAnotherPayment();\n}",
+    "fix": "// Algorithm: use stable request identity and authoritative writes.\nreceipt = commitOrReplayOnPrimary(command)\nreturn receipt\n// Read-your-write route: primary/consistency token as supported.\n// Cached/reporting reads expose their freshness; they never authorize duplicate effects.",
+    "bad": [
+      "1. Primary commits payment P",
+      "2. Replica or cache has not received P",
+      "3. Client sees missing on a stale GET",
+      "4. Naive retry creates another business operation"
+    ],
+    "good": [
+      "1. Return the durable operation identity from acceptance",
+      "2. Retry through the same idempotent write path",
+      "3. Route correctness-sensitive reads to authoritative state",
+      "4. Use eventual views only with explicit freshness expectations"
+    ],
+    "why": "Consistency depends on the read path. A cache invalidation can race an older read that repopulates stale data; versioned updates, bounded staleness and bypass rules may be needed.",
+    "limits": "Primary reads do not fix client authorization, commit ambiguity or incorrect state transitions. Stronger read routing costs primary capacity. A report can tolerate lag where payment authorization cannot.",
+    "check": "Delay replication/cache updates and immediately read after commit. Verify no duplicate effect and that API states are truthful. Monitor replica lag, cache age and stale-read incidents.",
+    "source": [
+      "iso"
+    ],
+    "lang": "text",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "10-migrations-and-storage",
+    "slug": "26-schema-rollout",
+    "title": "Schema changes break mixed application versions",
+    "analogy": "Removing a bridge while people still use it breaks the journey. A column cannot disappear while an older application version still expects it.",
+    "requirement": "Old and new application instances must coexist during rollout without corrupting data.",
+    "trigger": "A column is renamed/dropped or tightened to NOT NULL before old writers and historical rows are compatible.",
+    "wrong": "ALTER TABLE payments DROP COLUMN old_reference;\n-- Old application instances are still serving traffic.",
+    "fix": "-- Expand / migrate / contract algorithm, not one migration.\n1. Add the new compatible representation.\n2. Deploy compatible readers/writers; define authoritative field during transition.\n3. Backfill in bounded, resumable batches; validate completeness.\n4. Switch reads and verify no old writers remain.\n5. Remove old representation in a later controlled migration.",
+    "bad": [
+      "1. Old and new application instances coexist",
+      "2. Destructive migration removes a required column",
+      "3. Old SQL fails or dual-write fields diverge",
+      "4. Rolling deployment becomes an outage"
+    ],
+    "good": [
+      "1. Expand schema with backward-compatible changes",
+      "2. Move readers and writers through an explicit compatibility phase",
+      "3. Backfill and validate with restartable batches",
+      "4. Contract only after old paths are retired"
+    ],
+    "why": "Measure lock requirements and migration duration on representative data. PostgreSQL CREATE INDEX CONCURRENTLY is a separate tool with restrictions: it cannot run inside a normal transaction block and failed builds may leave invalid indexes.",
+    "limits": "Rollback of application code must remain compatible with the expanded schema. Dual writes need a defined consistency rule. Flyway presence alone does not mean the migration ran or the PostgreSQL database module/configuration is correct.",
+    "check": "Run both application versions against each phase in a disposable database. Interrupt and resume backfill. Verify constraint validation, index validity and lock wait limits before deployment.",
+    "source": [
+      "alter"
+    ],
+    "lang": "text",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "10-migrations-and-storage",
+    "slug": "27-mvcc-vacuum",
+    "title": "Long snapshots, dead tuples and storage growth",
+    "analogy": "An archive cannot discard an old edition while someone still needs it. PostgreSQL keeps row versions needed by active snapshots.",
+    "requirement": "Keep storage and cleanup healthy while preserving readers\u2019 valid snapshots.",
+    "trigger": "Long-running or idle-in-transaction sessions keep old versions relevant; update/delete-heavy tables grow and plans degrade.",
+    "wrong": "-- Open a transaction, read data, then leave it idle for hours while writers continue.",
+    "fix": "-- Operational diagnosis, not a blanket kill/vacuum script.\nSELECT state, xact_start, wait_event_type, wait_event\nFROM pg_stat_activity WHERE xact_start IS NOT NULL;\n-- Bound application transaction lifetime; monitor autovacuum and dead tuples.\n-- Review specific old sessions before any cancellation.",
+    "bad": [
+      "1. A transaction keeps an old snapshot open",
+      "2. Writers produce new versions and dead tuples",
+      "3. Vacuum cannot remove versions still potentially visible",
+      "4. Storage and scan costs can grow"
+    ],
+    "good": [
+      "1. Observe transaction ages, waits and table churn",
+      "2. Fix application paths that hold unnecessary transactions",
+      "3. Tune maintenance from measured workload",
+      "4. Verify cleanup progress and query behaviour"
+    ],
+    "why": "MVCC allows readers and writers to coexist but retains versions for visibility. Ordinary VACUUM generally makes space reusable within the table; it is not the same as returning all file space to the operating system.",
+    "limits": "Replication slots and other retention mechanisms can also cause storage growth. VACUUM FULL rewrites and strongly locks a table; it is not a casual first response. Diagnose before applying disruptive actions.",
+    "check": "In an isolated fixture, hold a snapshot while another session updates rows. Inspect dead-tuple estimates and cleanup before and after releasing it. Correlate disk, vacuum and transaction-age metrics.",
+    "source": [
+      "vacuum"
+    ],
+    "lang": "sql",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "11-mongodb",
+    "slug": "28-mongo-uniqueness",
+    "title": "MongoDB unique identity needs an actual index",
+    "analogy": "Writing a rule on each form does not prevent two clerks accepting the same booking. The collection needs a shared enforcement mechanism.",
+    "requirement": "One merchant/request pair must identify one document.",
+    "trigger": "Two find-then-insert callers race; an annotation is assumed to have created a production index.",
+    "wrong": "if (!db.payments.findOne({merchantId: m, requestKey: k})) {\n    db.payments.insertOne({merchantId: m, requestKey: k, amountMinor: 100});\n}",
+    "fix": "// mongosh fixture, not Java or an installed project integration.\ndb.payments.createIndex({merchantId: 1, requestKey: 1}, {unique: true});\n// Validate required non-null fields, attempt insert, classify duplicate key,\n// then read and compare immutable payload before replaying.",
+    "bad": [
+      "1. Two clients read missing key",
+      "2. Both attempt document insertion",
+      "3. Without a unique index, both can exist",
+      "4. Application has two records for the same request"
+    ],
+    "good": [
+      "1. Install and verify the intended composite unique index",
+      "2. Validate required identity fields",
+      "3. Concurrent inserts compete on that shared index",
+      "4. Duplicate handling compares owner and immutable intent"
+    ],
+    "why": "MongoDB single-document atomicity does not enforce uniqueness across different documents by itself. Sharded-collection unique-index restrictions and shard-key design must be considered separately.",
+    "limits": "Existing duplicates prevent index creation. Missing/null values and partial indexes alter uniqueness semantics. This project has no MongoDB connection or dependency; no Mongo examples were executed.",
+    "check": "Use a disposable Mongo deployment matching the intended topology. Inspect listIndexes, coordinate competing inserts, assert one document, and test null/missing identity fields and different merchants.",
+    "source": [
+      "mongoindex"
+    ],
+    "lang": "javascript",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "11-mongodb",
+    "slug": "29-mongo-atomic-update",
+    "title": "MongoDB stale read\u2013modify\u2013write",
+    "analogy": "Two people edit the same copied total; the final copy overwrites the other. A guarded change applies directly to the current record.",
+    "requirement": "Reserve funds without overwriting concurrent updates or spending more than available.",
+    "trigger": "A read followed by $set writes a balance computed from stale data.",
+    "wrong": "const p = db.wallets.findOne({_id: id});\ndb.wallets.updateOne({_id: id}, {$set: {availableMinor: p.availableMinor - amount}});",
+    "fix": "// Validate amount is a positive safe value and operation identity is deduplicated.\nconst result = db.wallets.updateOne(\n    {_id: id, availableMinor: {$gte: amount}},\n    {$inc: {availableMinor: -amount}});\nif (result.matchedCount !== 1) throw new Error(\"Reservation rejected\");",
+    "bad": [
+      "1. Two callers read available=100",
+      "2. Each computes a replacement value",
+      "3. Both write without an expected-state predicate",
+      "4. One change is lost or funds are over-reserved"
+    ],
+    "good": [
+      "1. Validate amount and durable operation identity",
+      "2. Send guarded atomic decrement on one document",
+      "3. MongoDB evaluates predicate with the update",
+      "4. Check matchedCount; reject unavailable capacity"
+    ],
+    "why": "The conditional update protects this single document. $inc alone does not deduplicate repeated requests. Multi-document operations need an explicit atomicity design, potentially a supported multi-document transaction.",
+    "limits": "JavaScript numeric examples require safe integer bounds; monetary BSON Long/Decimal128 needs compatible mapping. Different read/write concerns affect durability and visibility. No live Mongo tests have run.",
+    "check": "Coordinate competing reservations that exceed the available total, check matched counts and final state, then retry the same business operation to verify deduplication separately.",
+    "source": [
+      "mongo"
+    ],
+    "lang": "javascript",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "12-dynamodb",
+    "slug": "30-dynamo-overwrite",
+    "title": "DynamoDB PutItem replaces an existing item",
+    "analogy": "Putting a new form in the same file slot replaces the old form. PutItem uses the primary key to identify that slot.",
+    "requirement": "Creating a new request must not overwrite a stored request under the same key.",
+    "trigger": "An unconditional PutItem is used as create-only or a partial update.",
+    "wrong": "client.putItem(r -> r.tableName(table).item(item));\n// Existing item with this primary key can be replaced.",
+    "fix": "// Imports include java.util.Map; AWS SDK v2 DynamoDbClient. Table partition key: pk.\nclient.putItem(r -> r.tableName(table).item(item)\n    .conditionExpression(\"attribute_not_exists(#pk)\")\n    .expressionAttributeNames(Map.of(\"#pk\", \"pk\")));\n// ConditionalCheckFailedException means resolve conflict, not blindly retry overwrite.",
+    "bad": [
+      "1. Stored item already owns primary key K",
+      "2. New request issues unconditional PutItem for K",
+      "3. Existing item is replaced, including omitted attributes",
+      "4. Previous data or idempotency evidence disappears"
+    ],
+    "good": [
+      "1. Define create-only versus update semantics",
+      "2. Use a condition for creation of the exact key",
+      "3. Competing create fails the condition",
+      "4. Read and compare existing intent before replay or conflict"
+    ],
+    "why": "The condition and write are evaluated atomically for the item. With a composite key, it protects that exact key pair, not every item sharing the partition key. Use UpdateItem for deliberate partial changes, with expected-state/version conditions.",
+    "limits": "Conditions do not enforce global uniqueness across unrelated keys. Enhanced Client bean annotations map attributes; they do not automatically impose the business uniqueness contract. SDK dependencies are installed, but this project is not connected to DynamoDB.",
+    "check": "In a disposable test table, put a row, then try a conditional duplicate and an unconditional replacement. Verify exact stored attributes and exception handling. No AWS resources were created or contacted by this guide.",
+    "source": [
+      "ddbput"
+    ],
+    "lang": "java",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "12-dynamodb",
+    "slug": "31-dynamo-partial-batch",
+    "title": "DynamoDB batch success can contain unfinished work",
+    "analogy": "A courier can deliver some parcels and return the rest. Receiving a batch response does not prove every item was delivered.",
+    "requirement": "Track every requested write to completion or durable retry without claiming partial success is total success.",
+    "trigger": "BatchWriteItem response has UnprocessedItems which the application ignores.",
+    "wrong": "client.batchWriteItem(request);\nreturn \"all saved\";",
+    "fix": "// Algorithm; bounded attempts, deadline and durable retry path required.\npending = originalWrites\nwhile pending is not empty and retryBudgetAllows:\n    result = batchWrite(pending)\n    pending = result.unprocessedItems\n    if pending is not empty: waitWithExponentialBackoffAndJitter()\nif pending is not empty: persistOrReportUnfinishedWork(pending)\nelse: reportBatchComplete()",
+    "bad": [
+      "1. Submit batch of puts/deletes",
+      "2. Service processes some items and returns others unprocessed",
+      "3. Application ignores the remaining list",
+      "4. Caller is told all succeeded while some data is missing"
+    ],
+    "good": [
+      "1. Retain original work identity",
+      "2. Inspect every response for unprocessed items",
+      "3. Retry only remaining work within a bounded backoff policy",
+      "4. Persist or report leftovers when the budget expires"
+    ],
+    "why": "BatchWriteItem is not one atomic transaction and does not support per-item conditional expressions. Whole-call errors also need a defined retry path. Repeating unconditional puts can overwrite newer data, so workload semantics matter.",
+    "limits": "Use TransactWriteItems for a supported all-or-nothing set when required, with its limits and conflict handling. Do not retry forever or hide failures. No live Dynamo batch test was run.",
+    "check": "Stub a response with unprocessed items, a throttling exception, and retry exhaustion. Assert no false all-saved result, only unresolved items retried after partial success, and a durable failure/recovery path.",
+    "source": [
+      "ddbbatch"
+    ],
+    "lang": "text",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "12-dynamodb",
+    "slug": "32-dynamo-consistency-and-ttl",
+    "title": "DynamoDB index lag and TTL are not correctness gates",
+    "analogy": "A directory can lag behind its source, and an expiry label is not an immediate shredder. Index visibility and physical TTL deletion are different from business validity.",
+    "requirement": "Do not accept a duplicate or expired operation solely because an index is stale or an expired item still exists.",
+    "trigger": "A GSI query misses a just-written item; code assumes TTL removes data immediately at the expiry second.",
+    "wrong": "// Wrong assumptions:\nif (gsiLookup(key).isEmpty()) acceptAsNew();\nif (itemExists()) assumeStillValid();",
+    "fix": "// Algorithm: stable primary key plus conditional writes.\ncreateOrTransitionWithCondition(authoritativeKey, expectedState)\n// For exact primary-key reads needing it: GetItem with consistentRead(true).\n// GSI reads remain eventually consistent.\n// Evaluate expiresAt against the application\u2019s documented clock/expiry policy.",
+    "bad": [
+      "1. Base-table write succeeds",
+      "2. GSI has not caught up, or TTL cleanup has not happened",
+      "3. Application treats visibility as the business rule",
+      "4. Duplicate acceptance or stale validity decision occurs"
+    ],
+    "good": [
+      "1. Put correctness in primary-key conditional writes",
+      "2. Choose supported consistency for authoritative reads",
+      "3. Treat secondary indexes as potentially lagging views",
+      "4. Enforce logical expiry separately from asynchronous deletion"
+    ],
+    "why": "A strong read does not lock the row for a later write; use conditions for races. TTL cleanup is asynchronous. Retaining or deleting an idempotency record changes retry behaviour and must be intentional.",
+    "limits": "Hot partition keys, scans and oversized items are separate access-pattern/capacity problems. Shard only with a plan for queries, uniqueness and aggregation. Do not promise exact timing for TTL deletion.",
+    "check": "Simulate stale index results and an expired-but-present item; assert the write condition and logical-expiry rule still govern. Test hot keys under realistic distribution separately before choosing capacity.",
+    "source": [
+      "ddbread",
+      "ddbttl"
+    ],
+    "lang": "text",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "13-recovery-and-observability",
+    "slug": "33-outbox-dual-write",
+    "title": "Database commit and event publish are two writes",
+    "analogy": "Saving an order and mailing its receipt are separate actions. Crashing between them leaves one done and the other missing.",
+    "requirement": "Every committed business change must eventually produce its required event without duplicating downstream effects.",
+    "trigger": "Application commits a row then crashes before publishing, or publishes before the database rollback.",
+    "wrong": "repository.save(payment);\nbroker.publish(event);\n// Neither ordering makes two independent systems one atomic transaction.",
+    "fix": "// Algorithm with one local database transaction.\nTX: write business state + outbox row with stable event ID; COMMIT\nrelay: claim committed outbox work; publish; record progress\nconsumer TX: insert unique inbox event ID + apply effect; COMMIT\nacknowledge message only after durable consumer work",
+    "bad": [
+      "1. Business row commits",
+      "2. Process crashes before event publish",
+      "3. No durable record says publish is still owed",
+      "4. Downstream system never learns about the change"
+    ],
+    "good": [
+      "1. Commit business row and outgoing-event row together",
+      "2. Relay retries committed pending events",
+      "3. Crash after publish can cause redelivery",
+      "4. Consumer deduplicates event and effect in its own transaction"
+    ],
+    "why": "The outbox closes the local dual-write gap, but delivery can repeat. Inbox uniqueness and effect must share an atomic boundary. Claim leases need expiry/recovery so crashed workers do not strand work.",
+    "limits": "Ordering, poison events, bounded retries, schema evolution and retention still need policy. This does not make arbitrary external side effects exactly once. Current small service has no implemented outbox flow even though the larger database has outbox tables.",
+    "check": "Inject crashes before/after local commit, after publish before progress update, and after consumer commit before ack. Assert committed changes eventually appear and each consumer business effect occurs once.",
+    "source": [
+      "outbox"
+    ],
+    "lang": "text",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "13-recovery-and-observability",
+    "slug": "34-provider-uncertainty",
+    "title": "A timeout does not prove payment failure",
+    "analogy": "A lost receipt does not prove the purchase never happened. A provider can complete work while its reply is lost.",
+    "requirement": "Never create a second charge merely because the first result is unknown.",
+    "trigger": "Connection times out after the provider receives a payment; application retries using a new provider operation key.",
+    "wrong": "try { provider.charge(newRandomKey(), amount); }\ncatch (TimeoutException e) { provider.charge(newRandomKey(), amount); }",
+    "fix": "// Recovery algorithm, adapted to the provider\u2019s documented capabilities.\npersist stable operation ID before submission\nsubmit using that same identity where idempotency is supported\non timeout: record UNKNOWN, query status / wait for authenticated webhook\nreconcile against authoritative evidence before any new money movement",
+    "bad": [
+      "1. Provider receives operation K and may complete it",
+      "2. Response is lost; local caller sees timeout",
+      "3. Caller retries with fresh identity K2",
+      "4. Provider may accept two distinct charges"
+    ],
+    "good": [
+      "1. Store the operation identity and intended amount",
+      "2. Submit with documented deduplication semantics",
+      "3. Mark uncertainty truthfully and recover status",
+      "4. Confirm outcome or use a controlled reconciliation process"
+    ],
+    "why": "Database rollback cannot undo an already completed provider action. Compensation such as refund is a new operation with its own idempotency, possible failure and accounting entries.",
+    "limits": "Not every provider supports idempotency or status lookup; such cases require explicit operational reconciliation. A UI pending state can be safer than falsely reporting failure or success. Preserve audit evidence.",
+    "check": "Use a simulator that completes a charge but drops the reply. Retry/recover and assert one provider effect. Test duplicate and out-of-order webhooks, authentication failure and compensation retries.",
+    "source": [
+      "saga"
+    ],
+    "lang": "text",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "13-recovery-and-observability",
+    "slug": "35-test-false-confidence",
+    "title": "Passing tests can hide missing commit and missing coverage",
+    "analogy": "A rehearsal ending before the final act cannot prove the ending works. A test that always rolls back can miss commit-time failures.",
+    "requirement": "Evidence must exercise the actual boundary and verify durable outcomes.",
+    "trigger": "H2 differs from PostgreSQL, transactional tests roll back, sleep-based concurrency tests do not force overlap, or an empty test suite runs no assertions.",
+    "wrong": "@Transactional\n@Test void saveWorks() {\n    repository.save(entity);\n    assertNotNull(entity.getId());\n} // ID in memory does not prove database commit.",
+    "fix": "// Test design, not a runnable method.\nrun application operation through its real boundary\nforce required flush and allow transaction owner to commit\nread from a fresh transaction/connection and assert stored invariant\nfor races: coordinate two connections with barriers, not arbitrary sleep\nreport discovered and executed tests, failures and skipped cases",
+    "bad": [
+      "1. Test creates Java object and calls save",
+      "2. Assertion inspects only the object in memory",
+      "3. Test-owned transaction rolls back",
+      "4. No evidence establishes commit or concurrent correctness"
+    ],
+    "good": [
+      "1. Define the invariant and exact failure being tested",
+      "2. Exercise real database and transaction boundaries",
+      "3. Check durable state through a fresh read",
+      "4. Record actual execution counts and limitations"
+    ],
+    "why": "Use PostgreSQL for PostgreSQL-specific constraints, isolation and SQL. Unit tests remain useful for pure logic but cannot establish database behaviour. This project\u2019s TransactionPersistenceTest is empty; compile success is not passing persistence tests.",
+    "limits": "Mocks cannot reproduce database locks. Testcontainers require Docker and cleanup; a disposable local database is another option. Race tests must have bounded timeouts and clean resources even when assertions fail.",
+    "check": "Inspect test reports for nonzero relevant execution counts. Include deliberately broken variants so the test is known to detect the fault. Distinguish source-reviewed examples from compiled and database-executed examples.",
+    "source": [
+      "boot"
+    ],
+    "lang": "text",
+    "scope": "Current persistence test class is empty. The guide\u2019s separate scratch SQL checks do not constitute application integration test coverage."
+  },
+  {
+    "cat": "13-recovery-and-observability",
+    "slug": "36-backup-and-reconciliation",
+    "title": "A backup is useful only if recovery works",
+    "analogy": "A spare key is useful only if it opens the door. A backup needs an actual restore exercise to prove it can recover data.",
+    "requirement": "Recover data within stated loss and time limits, then reconcile uncertain business effects.",
+    "trigger": "Backups exist but nobody has restored them; events/providers continued during the outage; restored state disagrees with external reality.",
+    "wrong": "if (backupFileExists()) report(\"Recovery proven\");",
+    "fix": "// Recovery drill on isolated resources.\nrestore backup and required logs to a known recovery target\nvalidate schema, row counts, constraints and representative business invariants\nmeasure recovery time and document the recoverable-data window\nreconcile provider operations and event positions before resuming effects",
+    "bad": [
+      "1. Backup job reports success",
+      "2. Incident requires restoration",
+      "3. Missing logs, permissions or procedure block recovery",
+      "4. Restored local data may also disagree with external payments"
+    ],
+    "good": [
+      "1. Run a scheduled isolated restore drill",
+      "2. Validate integrity and usable application state",
+      "3. Measure actual recovery point and duration",
+      "4. Reconcile external effects and resume deliberately"
+    ],
+    "why": "RPO describes tolerated data loss; RTO describes tolerated recovery time. Schema-only restore, as done for this ERD, verifies structure reproduction only, not backup of payment data or point-in-time recovery.",
+    "limits": "Do not declare zero loss without matching durability/backup/replication evidence. Restore procedures must avoid contacting real providers with replayed data. Deletion and retention policies must retain the evidence recovery needs.",
+    "check": "Restore a synthetic dataset, verify known records and invariants, simulate missing log segments, and document failures. No live backup or external reconciliation was performed for this guide.",
+    "source": [
+      "backup"
+    ],
+    "lang": "text",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "05-mapping-and-types",
+    "slug": "37-type-and-schema-mismatch",
+    "title": "Java mapping and SQL column disagree",
+    "analogy": "An address written for one building cannot reliably reach a different building. A mapping must identify the correct schema, table, column and compatible type.",
+    "requirement": "Store and read the intended values without silent coercion or mapping surprises.",
+    "trigger": "Wrong schema/name/import, UUID versus numeric column, excessive string length, invalid JSON or a converter error causes persistence failure.",
+    "wrong": "@Column(name = \"merchant_id\")\nLong merchantId; // wrong for the current varchar(100) merchant_id\n// JPA and Mongo annotations are not interchangeable.",
+    "fix": "// Current PostgreSQL/JPA model uses jakarta.persistence.Column.\n@Column(name = \"merchant_id\", nullable = false, length = 100)\nString merchantId;\n// Align this with an actual varchar(100) column and validate before persistence.",
+    "bad": [
+      "1. Java entity supplies a value under its mapping metadata",
+      "2. Hibernate selects JDBC binding and column name/type",
+      "3. JDBC transports values; PostgreSQL checks target type and constraints",
+      "4. Mismatch fails at mapping, binding, SQL execution or result extraction"
+    ],
+    "good": [
+      "1. Inspect actual schema and entity annotations together",
+      "2. Align Java domain type and SQL storage type",
+      "3. Validate length, nullability, precision and format deliberately",
+      "4. Test write/read boundaries and expected exception classification"
+    ],
+    "why": "JDBC transports SQL values; it does not independently infer JPA entities. Hibernate maps entities to SQL. Mongo\u2019s mapper/driver uses BSON, while DynamoDB Enhanced Client maps to AttributeValue. These are distinct pipelines.",
+    "limits": "Length metadata is not input validation. Silent casts can hurt index use or obscure bugs. SQLSTATE 22001 is string truncation, 22003 numeric range, 22P02 invalid textual representation; actual exceptions depend on the failing layer.",
+    "check": "Use exact boundary values: length 100/101, null, malformed UUID, fractional precision and overflow. Verify failed operations do not leave partial committed changes. Include custom-converter round-trip tests.",
+    "source": [
+      "jpaspec",
+      "numeric"
+    ],
+    "lang": "java",
+    "scope": "Current merchantId is correctly mapped as String. The wrong example intentionally changes it to demonstrate the failure."
+  },
+  {
+    "cat": "04-idempotency-and-concurrency",
+    "slug": "38-tenant-access",
+    "title": "Finding an ID is not authorization",
+    "analogy": "Knowing an apartment number is not a key to its door. Knowing a payment ID similarly does not grant access to that merchant\u2019s payment.",
+    "requirement": "A merchant may read/change only its authorized records.",
+    "trigger": "A backend trusts a merchant ID from the request or fetches by payment ID without ownership checks.",
+    "wrong": "return repository.findById(paymentId).orElseThrow();\n// Assumes an unpredictable UUID is sufficient authorization.",
+    "fix": "// Fragment; authenticatedMerchantId is resolved and authorized server-side.\nreturn repository.findByIdAndMerchantId(paymentId, authenticatedMerchantId)\n    .orElseThrow(() -> new IllegalArgumentException(\"Not found\"));\n// Apply equivalent ownership predicates to updates, deletes and related queries.",
+    "bad": [
+      "1. Merchant A obtains an ID belonging to merchant B",
+      "2. Endpoint fetches by ID alone",
+      "3. Database correctly returns the existing row",
+      "4. Missing authorization leaks B\u2019s data"
+    ],
+    "good": [
+      "1. Authenticate caller and resolve allowed merchant scope",
+      "2. Query with both resource ID and authorized merchant",
+      "3. Missing ownership produces a non-leaking failure",
+      "4. Apply the same rule to every related read and write"
+    ],
+    "why": "Transaction isolation concerns concurrent visibility, not tenant permissions. The current repository has a scoped finder, but existence of that method does not prove every endpoint uses it correctly.",
+    "limits": "Row-level security can provide additional enforcement with carefully managed roles/session context; it is disabled on the captured schema. Schema-per-tenant or database-per-tenant trades cost and operational complexity for stronger physical separation.",
+    "check": "Create two merchants with records, use each identity against both IDs, and assert only authorized access. Test nested resources, batch endpoints, exports and cache keys, not just one controller.",
+    "source": [
+      "constraint"
+    ],
+    "lang": "java",
+    "scope": "Current repository exposes a merchant-scoped ID finder. End-to-end authorization has not been demonstrated."
+  },
+  {
+    "cat": "13-recovery-and-observability",
+    "slug": "39-event-order",
+    "title": "Duplicate and out-of-order outcomes",
+    "analogy": "Reading an older delivery notice after a newer one should not send the parcel backward. Event consumers need a rule for stale updates.",
+    "requirement": "Repeated or stale outcomes must not duplicate effects or regress an authoritative state.",
+    "trigger": "A delayed pending event arrives after success; two workers process the same event.",
+    "wrong": "payment.setStatus(event.status());\nrepository.save(payment);\nack(event);",
+    "fix": "// Algorithm; requires trusted event identity and documented ordering.\nTX: insert unique inbox event ID\n    if duplicate: do not reapply effect\n    otherwise: validate owner, operation, allowed transition and source version\n               apply guarded state change and required local effects\nCOMMIT; acknowledge\n// Reject/quarantine impossible transitions; reconcile conflicting authority.",
+    "bad": [
+      "1. SUCCESS for operation K is committed",
+      "2. Older PENDING event or duplicate SUCCESS arrives",
+      "3. Blind overwrite regresses state or repeats an effect",
+      "4. Merchant view and accounting become inconsistent"
+    ],
+    "good": [
+      "1. Authenticate source and identify event/operation",
+      "2. Deduplicate event and effect in one transaction",
+      "3. Apply only an allowed, authoritative transition",
+      "4. Commit before acknowledging; reconcile conflicts"
+    ],
+    "why": "A timestamp alone is not reliable causal order across clocks. Use provider sequence/version only where documented. Compare-and-set guards and transition rules must be operation-specific: a refund is not simply payment success becoming failure.",
+    "limits": "Terminal-state assumptions can be wrong for some products; define the state machine first. Poison events need bounded retries and a repair path. An inbox table alone does not implement correct handling.",
+    "check": "Deliver duplicate, reversed and conflicting events through two workers. Crash after commit before acknowledgment. Assert one local effect and no disallowed regression; inspect durable quarantine/reconciliation evidence.",
+    "source": [
+      "outbox"
+    ],
+    "lang": "text",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "07-delete-and-lifecycle",
+    "slug": "40-soft-delete",
+    "title": "Soft delete does not automatically change visibility or uniqueness",
+    "analogy": "Crossing a name off a list does not remove it from every photocopy. A deleted flag needs consistent use by all read and write paths.",
+    "requirement": "Retired records must be hidden where required without erasing financial evidence or accidentally freeing permanent identities.",
+    "trigger": "Queries forget deleted_at; a unique constraint blocks intended reuse or a partial index wrongly permits reuse of a permanent idempotency key.",
+    "wrong": "UPDATE contacts SET deleted_at = now() WHERE id = :id;\nSELECT * FROM contacts WHERE merchant_id = :merchant; -- still includes retired rows",
+    "fix": "-- Hypothetical contacts, where the product explicitly permits reuse after retirement.\nSELECT * FROM contacts WHERE merchant_id = :merchant AND deleted_at IS NULL;\nCREATE UNIQUE INDEX contacts_active_name\nON contacts(merchant_id, name) WHERE deleted_at IS NULL;\n-- Do NOT apply this reuse rule blindly to payment/idempotency/audit identities.",
+    "bad": [
+      "1. Record is marked deleted",
+      "2. An unfiltered read still returns it",
+      "3. Old uniqueness rules and new reuse expectations conflict",
+      "4. Leaked retired data or unintended identity reuse results"
+    ],
+    "good": [
+      "1. Specify visibility, retention and reuse rules per record type",
+      "2. Apply consistent predicates and authorization",
+      "3. Match indexes to the chosen lifecycle contract",
+      "4. Test restore/reuse races and preserve required history"
+    ],
+    "why": "Soft deletion is an application/database contract, not one magic annotation. Partial uniqueness is one option for reusable active names, not a universal solution.",
+    "limits": "Restoring a retired row can conflict with a new active one. Cleanup must be bounded and must not delete evidence needed for payment recovery. Cascades and native queries can bypass ORM filtering.",
+    "check": "Test ordinary reads, native queries, exports, restore, concurrent reuse and retention cleanup. Verify tenant predicates on delete/update. Confirm that payment retry keys remain governed by their separate retention contract.",
+    "source": [
+      "constraint"
+    ],
+    "lang": "sql",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  },
+  {
+    "cat": "08-pools-and-capacity",
+    "slug": "41-flush-memory",
+    "title": "Flush does not clear memory or commit batches",
+    "analogy": "Sending a copy of your notes does not empty your desk. Flushing SQL does not remove managed objects from Hibernate\u2019s context.",
+    "requirement": "Import bounded work without retaining every entity or accidentally changing atomicity.",
+    "trigger": "A huge loop persists records and calls flush, but never clears the persistence context; one enormous transaction also holds locks and rollback work.",
+    "wrong": "for (Row row : allRows) {\n    em.persist(map(row));\n    em.flush(); // frequent flush harms batching; entities remain managed\n}",
+    "fix": "// Fragment inside a deliberately bounded transaction; input must also be streamed/bounded.\nint count = 0;\nfor (Row row : boundedChunk) {\n    em.persist(map(row));\n    if (++count % 100 == 0) { em.flush(); em.clear(); }\n}\nem.flush();\nem.clear();\n// Commit belongs to the transaction owner, not flush/clear.",
+    "bad": [
+      "1. Import loads many rows and creates managed entities",
+      "2. flush sends SQL but retains managed objects",
+      "3. Persistence context and transaction grow",
+      "4. Heap, dirty checking, locks and rollback costs increase"
+    ],
+    "good": [
+      "1. Define bounded input and transaction size",
+      "2. Flush a reasonable batch, then clear only after successful flush",
+      "3. Avoid relying on detached objects after clear",
+      "4. Commit at the declared boundary and record restart progress"
+    ],
+    "why": "clear detaches objects; batch size must be measured. JDBC batching requires appropriate configuration and compatible ID strategy/SQL patterns. A flush failure requires ending the unit of work.",
+    "limits": "Multiple committed chunks lose whole-import atomicity; use staging/publish designs if the business requires all-or-nothing visibility. Identity generation may require early INSERTs and constrain batching.",
+    "check": "Measure heap, managed entity count, SQL batches, transaction age and total duration at increasing input sizes. Crash between chunks and verify resumability without duplicate effects.",
+    "source": [
+      "fetch",
+      "jpaspec"
+    ],
+    "lang": "java",
+    "scope": "Hypothetical fixture; this is not an observed defect in the practice service."
+  }
+]

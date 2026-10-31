@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1760" height="465" viewBox="0 0 1760 465"><title>providers schema and foreign keys</title><rect width="100%" height="100%" fill="white"/><defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="black"/></marker></defs>
+<text x="40" y="50" fill="black" font-family="Arial,sans-serif" font-size="32" font-weight="bold">paymesh.providers</text>
+<text x="40" y="90" fill="black" font-family="Arial,sans-serif" font-size="24" font-weight="normal">FK arrow: child columns → referenced parent key. Only declared constraints.</text>
+<rect x="40" y="130" width="770" height="275" fill="white" stroke="black" stroke-width="2"/>
+<text x="60" y="169" fill="black" font-family="Arial,sans-serif" font-size="24" font-weight="bold">Column | SQL type | key | nullability</text>
+<text x="60" y="213" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">provider_id : uuid  PK NOT NULL</text>
+<text x="60" y="256" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">code : varchar(50)  NOT NULL</text>
+<text x="60" y="299" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">name : varchar(200)  NOT NULL</text>
+<text x="60" y="342" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">status : varchar(30)  NOT NULL</text>
+<text x="60" y="385" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">created_at : timestamptz  NOT NULL</text>
+<text x="900" y="200" fill="black" font-family="Arial,sans-serif" font-size="24" font-weight="normal">No outgoing foreign keys declared.</text>
+<text x="40" y="430" fill="black" font-family="Arial,sans-serif" font-size="22" font-weight="normal">PK = primary key; FK = foreign key. Constraints, defaults and indexes are in the separate reference.</text>
+</svg>

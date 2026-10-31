@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1760" height="530" viewBox="0 0 1760 530"><title>reconciliation_matches schema and foreign keys</title><rect width="100%" height="100%" fill="white"/><defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="black"/></marker></defs>
+<text x="40" y="50" fill="black" font-family="Arial,sans-serif" font-size="32" font-weight="bold">paymesh.reconciliation_matches</text>
+<text x="40" y="90" fill="black" font-family="Arial,sans-serif" font-size="24" font-weight="normal">FK arrow: child columns → referenced parent key. Only declared constraints.</text>
+<rect x="40" y="130" width="770" height="310" fill="white" stroke="black" stroke-width="2"/>
+<text x="60" y="169" fill="black" font-family="Arial,sans-serif" font-size="24" font-weight="bold">Column | SQL type | key | nullability</text>
+<text x="60" y="213" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">statement_line_id : uuid  PK FK NOT NULL</text>
+<text x="60" y="256" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">journal_line_id : uuid  PK FK NOT NULL</text>
+<text x="60" y="299" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">matched_amount_minor : bigint  NOT NULL</text>
+<text x="60" y="342" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">match_method : varchar(30)  NOT NULL</text>
+<text x="60" y="385" fill="black" font-family="Arial,sans-serif" font-size="21" font-weight="normal">matched_at : timestamptz  NOT NULL</text>
+<path d="M810 195 H1110" fill="none" stroke="black" stroke-width="2" marker-end="url(#a)"/>
+<text x="835" y="162" fill="black" font-family="Arial,sans-serif" font-size="18" font-weight="normal">journal_line_id</text>
+<rect x="1125" y="140" width="595" height="112" fill="white" stroke="black" stroke-width="2"/>
+<text x="1145" y="176" fill="black" font-family="Arial,sans-serif" font-size="26" font-weight="bold">journal_lines</text>
+<text x="1145" y="210" fill="black" font-family="Arial,sans-serif" font-size="22" font-weight="normal">key: journal_line_id</text>
+<text x="1145" y="238" fill="black" font-family="Arial,sans-serif" font-size="18" font-weight="normal">referenced table</text>
+<path d="M810 345 H1110" fill="none" stroke="black" stroke-width="2" marker-end="url(#a)"/>
+<text x="835" y="312" fill="black" font-family="Arial,sans-serif" font-size="18" font-weight="normal">statement_line_id</text>
+<rect x="1125" y="290" width="595" height="112" fill="white" stroke="black" stroke-width="2"/>
+<text x="1145" y="326" fill="black" font-family="Arial,sans-serif" font-size="26" font-weight="bold">bank_statement_lines</text>
+<text x="1145" y="360" fill="black" font-family="Arial,sans-serif" font-size="22" font-weight="normal">key: statement_line_id</text>
+<text x="1145" y="388" fill="black" font-family="Arial,sans-serif" font-size="18" font-weight="normal">referenced table</text>
+<text x="40" y="495" fill="black" font-family="Arial,sans-serif" font-size="22" font-weight="normal">PK = primary key; FK = foreign key. Constraints, defaults and indexes are in the separate reference.</text>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="950" viewBox="0 0 1200 950" role="img" aria-labelledby="title desc">
+<title id="title">EXPLICIT ROLLBACK-ONLY</title>
+<desc id="desc">Programmatic control when the application detects an invalid result. Do not report success merely because the callback returned normally.</desc>
+<rect width="1200" height="950" fill="white"/>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="black"/></marker></defs>
+<text x="600" y="54" text-anchor="middle" font-family="Arial,sans-serif" font-size="31" font-weight="bold" fill="black">EXPLICIT ROLLBACK-ONLY</text>
+<text x="600" y="97" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Programmatic control when the application detects an invalid result</text>
+<rect x="50" y="140" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="174" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">1. Enter TransactionTemplate callback</text>
+<text x="600" y="208" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Before: a new or joined transaction is active.</text>
+<text x="600" y="242" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Related writes participate in that transaction.</text>
+<path d="M600 265 L600 291" stroke="black" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+<rect x="50" y="300" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="334" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">2. A business check rejects the result</text>
+<text x="600" y="368" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">No exception is required for this decision.</text>
+<text x="600" y="402" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Example: a required consistency check fails.</text>
+<path d="M600 425 L600 451" stroke="black" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+<rect x="50" y="460" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="494" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">3. Mark the transaction rollback-only</text>
+<text x="600" y="528" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">The status records that this transaction must not commit.</text>
+<text x="600" y="562" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">This does not immediately rewind Java objects.</text>
+<path d="M600 585 L600 611" stroke="black" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+<rect x="50" y="620" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="654" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">4. Leave the owning transaction boundary</text>
+<text x="600" y="688" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">After: the transaction rolls back.</text>
+<text x="600" y="722" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Return an explicit unsuccessful business result to the caller.</text>
+<text x="600" y="880" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="bold" fill="black">Do not report success merely because the callback returned normally.</text>
+<text x="600" y="922" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="normal" fill="black">Conceptual teaching diagram. No execution times or tested outcomes are implied.</text>
+</svg>

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1440" viewBox="0 0 1200 1440" role="img" aria-labelledby="title desc">
+<title id="title">System design fundamentals and domain priorities</title><desc id="desc">Seven common learning blocks followed by examples of different domain priorities. Arrows indicate learning order, not request flow. Security and correctness apply throughout.</desc>
+<rect width="1200" height="1440" fill="white"/>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="black"/></marker></defs>
+<text x="600" y="48" text-anchor="middle" font-family="Arial,sans-serif" font-size="32" font-weight="bold" fill="black">SYSTEM DESIGN: SHARED FUNDAMENTALS</text>
+<text x="600" y="86" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="normal" fill="black">Learning order, not a runtime flow. Revisit earlier decisions as you learn.</text>
+<rect x="55" y="120" width="1090" height="94" fill="white" stroke="black" stroke-width="2" rx="5"/>
+<text x="600" y="156" text-anchor="middle" font-family="Arial,sans-serif" font-size="27" font-weight="bold" fill="black">1. Requirements and boundaries</text>
+<text x="600" y="192" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="normal" fill="black">Who uses it? What must work? What must always remain true?</text>
+<path d="M600 214 L600 237" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="55" y="245" width="1090" height="94" fill="white" stroke="black" stroke-width="2" rx="5"/>
+<text x="600" y="281" text-anchor="middle" font-family="Arial,sans-serif" font-size="27" font-weight="bold" fill="black">2. Request flow and contracts</text>
+<text x="600" y="317" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="normal" fill="black">Clients, APIs, routing, load balancers and ownership</text>
+<path d="M600 339 L600 362" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="55" y="370" width="1090" height="94" fill="white" stroke="black" stroke-width="2" rx="5"/>
+<text x="600" y="406" text-anchor="middle" font-family="Arial,sans-serif" font-size="27" font-weight="bold" fill="black">3. Data and correctness</text>
+<text x="600" y="442" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="normal" fill="black">Data models, constraints, transactions, concurrency and idempotency</text>
+<path d="M600 464 L600 487" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="55" y="495" width="1090" height="94" fill="white" stroke="black" stroke-width="2" rx="5"/>
+<text x="600" y="531" text-anchor="middle" font-family="Arial,sans-serif" font-size="27" font-weight="bold" fill="black">4. Capacity and scaling</text>
+<text x="600" y="567" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="normal" fill="black">Measure demand; consider caches, replicas and partitioning</text>
+<path d="M600 589 L600 612" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="55" y="620" width="1090" height="94" fill="white" stroke="black" stroke-width="2" rx="5"/>
+<text x="600" y="656" text-anchor="middle" font-family="Arial,sans-serif" font-size="27" font-weight="bold" fill="black">5. Failures and recovery</text>
+<text x="600" y="692" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="normal" fill="black">Timeouts, bounded retries, duplicate delivery and restore plans</text>
+<path d="M600 714 L600 737" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="55" y="745" width="1090" height="94" fill="white" stroke="black" stroke-width="2" rx="5"/>
+<text x="600" y="781" text-anchor="middle" font-family="Arial,sans-serif" font-size="27" font-weight="bold" fill="black">6. Security across every layer</text>
+<text x="600" y="817" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="normal" fill="black">Identity, permissions, tenant isolation, secrets and audit</text>
+<path d="M600 839 L600 862" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="55" y="870" width="1090" height="94" fill="white" stroke="black" stroke-width="2" rx="5"/>
+<text x="600" y="906" text-anchor="middle" font-family="Arial,sans-serif" font-size="27" font-weight="bold" fill="black">7. Operation and change</text>
+<text x="600" y="942" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="normal" fill="black">Metrics, logs, traces, tests, deployment and migrations</text>
+<text x="600" y="1030" text-anchor="middle" font-family="Arial,sans-serif" font-size="28" font-weight="bold" fill="black">DOMAIN REQUIREMENTS CHANGE THE PRIORITIES</text>
+<text x="600" y="1080" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Payments: prevent unintended duplicate effects; preserve financial records.</text>
+<text x="600" y="1131" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Video delivery: sustained throughput, buffering and global delivery.</text>
+<text x="600" y="1182" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Messaging: delivery, ordering, offline users and privacy.</text>
+<text x="600" y="1233" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Inventory: concurrent reservations and an explicit overselling policy.</text>
+<text x="600" y="1320" text-anchor="middle" font-family="Arial,sans-serif" font-size="25" font-weight="bold" fill="black">Every domain still needs correctness, security and reliability.</text>
+<text x="600" y="1360" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="normal" fill="black">These are illustrative priorities, not exclusive requirements.</text>
+<text x="600" y="1400" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="normal" fill="black">Start with one use case. Add mechanisms only when requirements justify them.</text>
+</svg>

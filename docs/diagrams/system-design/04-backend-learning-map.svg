@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="2400" viewBox="0 0 1040 2400" role="img" aria-labelledby="title desc">
+<title id="title">Backend and database learning order</title>
+<desc id="desc">Thirty-two numbered topics in eight stages, from request foundations to concurrent correctness, financial recovery, scaling and finally deployment.</desc>
+<defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M0 0 L12 6 L0 12 Z" fill="black"/></marker></defs>
+<rect width="1040" height="2400" fill="white"/>
+<text x="45" y="42" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="black">BACKEND AND DATABASE LEARNING ORDER</text>
+<text x="45" y="75" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="black">Foundations first → correctness → scale → deployment</text>
+<rect x="40" y="110" width="960" height="230" fill="white" stroke="black" stroke-width="2"/>
+<text x="65" y="150" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="black">1. Request foundations</text>
+<text x="65" y="192" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">01. Actors, system boundary and business rules</text>
+<text x="65" y="228" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">02. HTTP requests, responses and payment milestones</text>
+<text x="65" y="264" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">03. Load balancers and health checks</text>
+<text x="65" y="300" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">04. API gateway, authentication and authorization</text>
+<path d="M520 340 V380" stroke="black" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="390" width="960" height="230" fill="white" stroke="black" stroke-width="2"/>
+<text x="65" y="430" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="black">2. Spring and persistent data</text>
+<text x="65" y="472" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">05. Controller, service, repository and dependency injection</text>
+<text x="65" y="508" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">06. Entities, SQL types, money and identifiers</text>
+<text x="65" y="544" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">07. Keys, constraints, relationships and normalization</text>
+<text x="65" y="580" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">08. Queries, joins, indexes and pagination</text>
+<path d="M520 620 V660" stroke="black" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="670" width="960" height="230" fill="white" stroke="black" stroke-width="2"/>
+<text x="65" y="710" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="black">3. Transactions and Java execution</text>
+<text x="65" y="752" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">09. EntityManager, JDBC, flush, commit and rollback</text>
+<text x="65" y="788" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">10. Spring transactions, proxies and rollback rules</text>
+<text x="65" y="824" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">11. Thread safety: shared state, atomicity and visibility</text>
+<text x="65" y="860" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">12. Executors, connection pools and bounded work</text>
+<path d="M520 900 V940" stroke="black" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="950" width="960" height="230" fill="white" stroke="black" stroke-width="2"/>
+<text x="65" y="990" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="black">4. Concurrent database correctness</text>
+<text x="65" y="1032" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">13. Snapshots, MVCC and isolation levels</text>
+<text x="65" y="1068" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">14. Conditional updates, versions and row locks</text>
+<text x="65" y="1104" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">15. Deadlocks, lock ordering and transaction retries</text>
+<text x="65" y="1140" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">16. Idempotency and repeated customer requests</text>
+<path d="M520 1180 V1220" stroke="black" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="1230" width="960" height="230" fill="white" stroke="black" stroke-width="2"/>
+<text x="65" y="1270" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="black">5. State changes and durable messaging</text>
+<text x="65" y="1312" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">17. Payment state machines and unknown outcomes</text>
+<text x="65" y="1348" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">18. Synchronous calls, queues and retained streams</text>
+<text x="65" y="1384" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">19. Transactional outbox and the dual-write failure</text>
+<text x="65" y="1420" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">20. Webhooks, inbox, acknowledgement and event ordering</text>
+<path d="M520 1460 V1500" stroke="black" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="1510" width="960" height="230" fill="white" stroke="black" stroke-width="2"/>
+<text x="65" y="1550" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="black">6. Financial correctness and recovery</text>
+<text x="65" y="1592" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">21. Ledger entries and accounting invariants</text>
+<text x="65" y="1628" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">22. Cashflow, liquidity and atomic reservations</text>
+<text x="65" y="1664" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">23. Provider identity, retry budgets and failure isolation</text>
+<text x="65" y="1700" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">24. Reconciliation and settlement evidence</text>
+<path d="M520 1740 V1780" stroke="black" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="1790" width="960" height="230" fill="white" stroke="black" stroke-width="2"/>
+<text x="65" y="1830" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="black">7. Scaling and operational evidence</text>
+<text x="65" y="1872" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">25. Capacity, latency objectives and load tests</text>
+<text x="65" y="1908" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">26. Caching, read replicas and stale information</text>
+<text x="65" y="1944" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">27. Partitioning, sharding and consistent hashing</text>
+<text x="65" y="1980" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">28. Logs, metrics, traces, audit and alerts</text>
+<path d="M520 2020 V2060" stroke="black" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="2070" width="960" height="230" fill="white" stroke="black" stroke-width="2"/>
+<text x="65" y="2110" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="black">8. Advanced boundaries; deployment last</text>
+<text x="65" y="2152" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">29. Cross-service consistency and compensation</text>
+<text x="65" y="2188" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">30. Backups, restore, schema changes and recovery objectives</text>
+<text x="65" y="2224" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">31. Containers, pods, Kubernetes and EKS</text>
+<text x="65" y="2260" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="black">32. Scaling, safe releases and graceful shutdown</text>
+<text x="45" y="2350" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="black">One topic at a time. Numbers show learning order, not runtime calls.</text>
+</svg>

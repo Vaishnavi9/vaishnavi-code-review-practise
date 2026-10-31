@@ -1,0 +1,4 @@
+PASS N+1 cold contexts: 4 SELECTs versus 1; same results
+PASS flush keeps managed state; subsequent rollback discards SQL changes
+PASS merge returns managed copy; input stays detached
+PASS exact decimal conversion; excess precision and overflow rejected

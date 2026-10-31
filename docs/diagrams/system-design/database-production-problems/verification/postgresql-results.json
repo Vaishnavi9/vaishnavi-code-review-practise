@@ -1,0 +1,74 @@
+{
+  "postgresql": "18.6",
+  "scope": "Isolated synthetic SQL tests, not application integration tests",
+  "results": [
+    {
+      "case": "commit-two-writes",
+      "result": "PASS"
+    },
+    {
+      "case": "full-rollback",
+      "result": "PASS"
+    },
+    {
+      "case": "savepoint",
+      "result": "PASS"
+    },
+    {
+      "case": "failed-transaction-needs-rollback",
+      "result": "PASS"
+    },
+    {
+      "case": "deferred-constraint-at-commit",
+      "result": "PASS"
+    },
+    {
+      "case": "concurrent-unique-and-tenant-scope",
+      "result": "PASS"
+    },
+    {
+      "case": "reproduce-lost-update",
+      "result": "PASS"
+    },
+    {
+      "case": "optimistic-update-count",
+      "result": "PASS"
+    },
+    {
+      "case": "concurrent-refund-guard",
+      "result": "PASS"
+    },
+    {
+      "case": "reproduce-write-skew",
+      "result": "PASS"
+    },
+    {
+      "case": "parent-lock-prevents-skew",
+      "result": "PASS"
+    },
+    {
+      "case": "constraint-and-type-sqlstates",
+      "result": "PASS"
+    },
+    {
+      "case": "check-allows-null-unless-not-null",
+      "result": "PASS"
+    },
+    {
+      "case": "exact-decimal-and-scale-rounding",
+      "result": "PASS"
+    },
+    {
+      "case": "default-versus-explicit-null",
+      "result": "PASS"
+    },
+    {
+      "case": "instant-across-session-timezones",
+      "result": "PASS"
+    },
+    {
+      "case": "restored-transactions-constraints",
+      "result": "PASS"
+    }
+  ]
+}

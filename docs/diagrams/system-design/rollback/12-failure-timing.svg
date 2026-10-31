@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="950" viewBox="0 0 1200 950" role="img" aria-labelledby="title desc">
+<title id="title">FAILURE TIMING: flush success is not commit success</title>
+<desc id="desc">Different failures occur at different boundaries. Do not treat a connection timeout as proof that COMMIT did not happen.</desc>
+<rect width="1200" height="950" fill="white"/>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="black"/></marker></defs>
+<text x="600" y="54" text-anchor="middle" font-family="Arial,sans-serif" font-size="31" font-weight="bold" fill="black">FAILURE TIMING: flush success is not commit success</text>
+<text x="600" y="97" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Different failures occur at different boundaries</text>
+<rect x="50" y="140" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="174" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">1. Application accepts the input</text>
+<text x="600" y="208" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Before: no committed effect is established.</text>
+<text x="600" y="242" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Input validation alone cannot detect every database conflict.</text>
+<path d="M600 265 L600 291" stroke="black" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+<rect x="50" y="300" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="334" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">2. Flush executes SQL</text>
+<text x="600" y="368" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Immediate constraints may reject a write here.</text>
+<text x="600" y="402" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">An already-aborted PostgreSQL transaction needs recovery.</text>
+<path d="M600 425 L600 451" stroke="black" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+<rect x="50" y="460" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="494" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">3. Commit attempts completion</text>
+<text x="600" y="528" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Deferred constraints or other commit failures may still occur.</text>
+<text x="600" y="562" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">A successful flush is not a success receipt for the caller.</text>
+<path d="M600 585 L600 611" stroke="black" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+<rect x="50" y="620" width="1100" height="125" rx="4" fill="white" stroke="black" stroke-width="2"/>
+<text x="600" y="654" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="black">4. Distinguish confirmed failure from uncertainty</text>
+<text x="600" y="688" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Known rollback: no committed effect from that transaction.</text>
+<text x="600" y="722" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="normal" fill="black">Lost commit response: verify state before repeating the operation.</text>
+<text x="600" y="880" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="bold" fill="black">Do not treat a connection timeout as proof that COMMIT did not happen.</text>
+<text x="600" y="922" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="normal" fill="black">Conceptual teaching diagram. No execution times or tested outcomes are implied.</text>
+</svg>
