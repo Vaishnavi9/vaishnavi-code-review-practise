@@ -43,3 +43,12 @@ Solid arrows show calls or information hand-offs as labelled. Dotted arrows show
 Follow blocks 9 → 10 → 12, using block 11 as independent evidence. A synthetic example: receiving a capture notification does not automatically make those funds available for payout. Track expected settlement, confirmed receipt, reservations, fees and currency separately. Define the payout invariant before adding implementation or infrastructure.
 
 Optional later responsibilities include disputes/chargebacks, operational cases, audit, reporting and compliance integrations. They are not implemented or expanded in this first map.
+
+## The two external roles
+
+- **External payment provider:** processes the customer's chosen payment method and reports its outcome. Our provider-integration block calls it.
+- **External banking partner:** executes or reports bank transfers, including merchant payouts. Our payout-management block sends transfer instructions.
+- These are different roles in this proposed design, not necessarily different legal organizations. One partner can supply both roles.
+- **Merchant notifications go to the merchant backend**, not to the payment provider.
+
+The diagram-only Markdown embeds a black-and-white SVG for consistent rendering. Open [the SVG](01-business-service-map.svg) to zoom. The [original Mermaid connections](01-business-service-map.mmd) are preserved separately.

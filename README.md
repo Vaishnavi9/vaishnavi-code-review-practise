@@ -1,5 +1,3 @@
-> Public learning snapshot: this is an unfinished practice application, not a production payment platform. The design diagrams describe proposed responsibilities. The persistence test is currently an empty learner exercise; no passing persistence test is claimed. Local application properties and IDE run configuration are deliberately excluded. Running against a database requires your own local configuration.
-
 # Vaishnavi code-review practise
 
 A separate blank learning project based on the recruiter's transaction-service skeleton. The interview repository is not modified. This is a scaffold created with assistance, not an independently demonstrated application.
