@@ -1,0 +1,12 @@
+flowchart TD
+    save["SimpleJpaRepository.save(entity)"] --> nullCheck["Reject a null entity"]
+    nullCheck --> newCheck{"entityInformation.isNew(entity)?"}
+    newCheck -->|"true"| persist["EntityManager.persist(entity)"]
+    persist --> original["Return the same entity reference"]
+    newCheck -->|"false"| merge["EntityManager.merge(entity)"]
+    merge --> managed["Return the managed entity result"]
+    original --> flush["Pending SQL is sent at flush"]
+    managed --> flush
+    flush --> commit["Owning transaction must still commit"]
+    classDef default fill:#f4f8fc,stroke:#9eb4c8,color:#20354a
+

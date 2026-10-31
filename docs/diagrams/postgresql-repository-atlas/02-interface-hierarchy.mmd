@@ -1,0 +1,15 @@
+flowchart BT
+    ours["TransactionRepository: interface"] -->|"extends"| repo["Repository: marker interface"]
+    crud["CrudRepository: interface"] -->|"extends"| repo
+    listCrud["ListCrudRepository: interface"] -->|"extends"| crud
+    paging["PagingAndSortingRepository: interface"] -->|"extends"| repo
+    listPaging["ListPagingAndSortingRepository: interface"] -->|"extends"| paging
+    jpa["JpaRepository: interface"] -->|"extends"| listCrud
+    jpa -->|"extends"| listPaging
+    jpa -->|"extends"| example["QueryByExampleExecutor: interface"]
+    internal["JpaRepositoryImplementation: interface"] -->|"extends"| jpa
+    internal -->|"extends"| spec["JpaSpecificationExecutor: interface"]
+    internal -->|"extends"| aware["JpaRepositoryConfigurationAware: interface"]
+    simple["SimpleJpaRepository: concrete class"] -->|"implements"| internal
+    classDef default fill:#f4f8fc,stroke:#9eb4c8,color:#20354a
+

@@ -1,0 +1,11 @@
+flowchart TD
+    a["Request A: merchant and request key"] --> ta["Database transaction A"]
+    b["Request B: same merchant and key"] --> tb["Database transaction B"]
+    ta --> unique["UNIQUE merchant_id and request_key"]
+    tb --> unique
+    unique --> winner["One insert can commit"]
+    unique --> loser["Conflicting insert fails; roll back losing transaction"]
+    loser --> reread["Later retry flow: read winner in fresh transaction"]
+    update["Separate problem: updating existing row"] --> version["Version check / conditional UPDATE / deliberate row lock"]
+    classDef default fill:#f4f8fc,stroke:#9eb4c8,color:#20354a
+

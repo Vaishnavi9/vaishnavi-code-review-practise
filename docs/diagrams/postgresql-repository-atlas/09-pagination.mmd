@@ -1,0 +1,12 @@
+flowchart TD
+    rows["A result set may grow"] --> bounded{"Need only a known small result?"}
+    bounded -->|"yes"| list["Bounded List or Top result"]
+    bounded -->|"no"| totals{"Need total row/page counts?"}
+    totals -->|"yes"| page["Page plus Pageable; count may be needed"]
+    totals -->|"no"| next["Slice: content plus has-next information"]
+    next --> deep["For deep traversal consider keyset scrolling"]
+    page --> ordering["Stable ordering: createdAt then id"]
+    deep --> ordering
+    ordering --> index["Match filtering/order with suitable indexes"]
+    classDef default fill:#f4f8fc,stroke:#9eb4c8,color:#20354a
+

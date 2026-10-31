@@ -1,0 +1,13 @@
+flowchart TD
+    mappings["MAPPING"] --> entity["Entity / Table / Id / Column"]
+    mappings --> associations["ManyToOne / OneToMany / JoinColumn"]
+    mappings --> value["Enumerated / Embedded / Convert"]
+    queries["QUERY"] --> query["Query / Param / NamedQuery / NamedNativeQuery"]
+    queries --> fetching["EntityGraph / QueryHints"]
+    control["CONSISTENCY"] --> transaction["Transactional"]
+    control --> locks["Version / Lock"]
+    updates["WRITE QUERY"] --> modifying["Modifying plus deliberate transaction boundary"]
+    history["HISTORY / LIFECYCLE"] --> callbacks["PrePersist / PreUpdate / PostLoad"]
+    history --> auditing["CreatedDate / LastModifiedDate or Envers Audited"]
+    classDef default fill:#f4f8fc,stroke:#9eb4c8,color:#20354a
+

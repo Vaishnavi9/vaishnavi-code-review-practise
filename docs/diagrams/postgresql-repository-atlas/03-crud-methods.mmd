@@ -1,0 +1,11 @@
+flowchart LR
+    crud["CrudRepository"] --> write["WRITE: save / saveAll"]
+    crud --> one["READ: findById / existsById"]
+    crud --> many["READ: findAll / findAllById / count"]
+    crud --> remove["DELETE: delete / deleteById / deleteAllById"]
+    crud --> allDelete["DELETE: deleteAll with or without input"]
+    jpa["JpaRepository adds"] --> flush["flush / saveAndFlush / saveAllAndFlush"]
+    jpa --> reference["getReferenceById"]
+    jpa --> bulk["deleteAllInBatch / deleteAllByIdInBatch"]
+    classDef default fill:#f4f8fc,stroke:#9eb4c8,color:#20354a
+

@@ -1,0 +1,10 @@
+flowchart TD
+    query["Read several matching entities"] --> iterable["CrudRepository: Iterable result"]
+    query --> list["ListCrudRepository: List result"]
+    iterable --> each["Iterate over elements"]
+    list --> conveniences["List methods such as size and indexed access"]
+    iterable --> warning["Return type alone does not bound the query"]
+    list --> warning
+    warning --> bounded["Choose a limit or pagination when data can grow"]
+    classDef default fill:#f4f8fc,stroke:#9eb4c8,color:#20354a
+

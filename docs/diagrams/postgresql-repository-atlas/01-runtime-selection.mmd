@@ -1,0 +1,12 @@
+flowchart TD
+    deps["JPA starter and entity mappings"] --> factory["JpaRepositoryFactory"]
+    contract["Our TransactionRepository interface"] --> factory
+    factory --> proxy["Runtime proxy implementing our interface"]
+    proxy -->|"standard save"| impl["SimpleJpaRepository: concrete class"]
+    proxy -->|"derived finder"| derived["Query execution machinery"]
+    impl --> em["EntityManager API / Hibernate provider"]
+    derived --> em
+    em --> jdbc["JDBC and PostgreSQL driver"]
+    jdbc --> db[("PostgreSQL")]
+    classDef default fill:#f4f8fc,stroke:#9eb4c8,color:#20354a
+

@@ -1,0 +1,12 @@
+flowchart TD
+    derived["findByMerchantIdAndRequestKey"] --> criteria["Spring builds a JPA criteria query"]
+    jpql["JPQL: Transaction and merchantId"] --> orm["Hibernate uses entity mappings"]
+    criteria --> orm
+    named["Named query: registered name and query text"] -->|"JPQL variant"| orm
+    orm --> sql["SQL: paymesh.transactions and merchant_id"]
+    native["Native query: write SQL directly"] --> sql
+    named -->|"native variant"| sql
+    sql --> bind["Bind parameter values"]
+    bind --> db[("PostgreSQL")]
+    classDef default fill:#f4f8fc,stroke:#9eb4c8,color:#20354a
+

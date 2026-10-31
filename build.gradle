@@ -1,0 +1,63 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.11'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.vaishnavi'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'org.springframework.kafka:spring-kafka'
+
+    // AWS SDK v2: aligned with the existing PayMesh production learning lab.
+    // Libraries only: credentials stay outside the project; no resources are created.
+    implementation platform('software.amazon.awssdk:bom:2.57.7')
+    implementation 'software.amazon.awssdk:sqs'
+    implementation 'software.amazon.awssdk:sns'
+    implementation 'software.amazon.awssdk:kinesis'
+    implementation 'software.amazon.awssdk:cloudfront'
+    implementation 'software.amazon.awssdk:lambda'
+    // Credential support for role assumption and IAM Identity Center profiles.
+    implementation 'software.amazon.awssdk:sts'
+    implementation 'software.amazon.awssdk:sso'
+    implementation 'software.amazon.awssdk:ssooidc'
+    runtimeOnly 'com.h2database:h2'
+    runtimeOnly 'org.postgresql:postgresql'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform {
+        excludeTags 'database'
+    }
+}
+
+// Explicit opt-in: connects to the existing local PostgreSQL database.
+tasks.register('dbTest', Test) {
+    description = 'Runs the local PostgreSQL persistence exercises.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'database'
+    }
+    shouldRunAfter tasks.named('test')
+}
+

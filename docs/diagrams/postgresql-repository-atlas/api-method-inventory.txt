@@ -1,0 +1,207 @@
+Spring Data JPA / Commons 3.5.9: selected public API inventory
+Inspected locally on 31 October 2026. Inherited methods are defined in parent entries.
+Synthetic bridge methods may duplicate covariant signatures. This is API inspection, not feature activation.
+
+Compiled from "Repository.java"
+public interface org.springframework.data.repository.Repository<T, ID> {
+}
+
+Compiled from "CrudRepository.java"
+public interface org.springframework.data.repository.CrudRepository<T, ID> extends org.springframework.data.repository.Repository<T, ID> {
+  public abstract <S extends T> S save(S);
+  public abstract <S extends T> java.lang.Iterable<S> saveAll(java.lang.Iterable<S>);
+  public abstract java.util.Optional<T> findById(ID);
+  public abstract boolean existsById(ID);
+  public abstract java.lang.Iterable<T> findAll();
+  public abstract java.lang.Iterable<T> findAllById(java.lang.Iterable<ID>);
+  public abstract long count();
+  public abstract void deleteById(ID);
+  public abstract void delete(T);
+  public abstract void deleteAllById(java.lang.Iterable<? extends ID>);
+  public abstract void deleteAll(java.lang.Iterable<? extends T>);
+  public abstract void deleteAll();
+}
+
+Compiled from "ListCrudRepository.java"
+public interface org.springframework.data.repository.ListCrudRepository<T, ID> extends org.springframework.data.repository.CrudRepository<T, ID> {
+  public abstract <S extends T> java.util.List<S> saveAll(java.lang.Iterable<S>);
+  public abstract java.util.List<T> findAll();
+  public abstract java.util.List<T> findAllById(java.lang.Iterable<ID>);
+  public default java.lang.Iterable findAllById(java.lang.Iterable);
+  public default java.lang.Iterable findAll();
+  public default java.lang.Iterable saveAll(java.lang.Iterable);
+}
+
+Compiled from "PagingAndSortingRepository.java"
+public interface org.springframework.data.repository.PagingAndSortingRepository<T, ID> extends org.springframework.data.repository.Repository<T, ID> {
+  public abstract java.lang.Iterable<T> findAll(org.springframework.data.domain.Sort);
+  public abstract org.springframework.data.domain.Page<T> findAll(org.springframework.data.domain.Pageable);
+}
+
+Compiled from "ListPagingAndSortingRepository.java"
+public interface org.springframework.data.repository.ListPagingAndSortingRepository<T, ID> extends org.springframework.data.repository.PagingAndSortingRepository<T, ID> {
+  public abstract java.util.List<T> findAll(org.springframework.data.domain.Sort);
+  public default java.lang.Iterable findAll(org.springframework.data.domain.Sort);
+}
+
+Compiled from "JpaRepository.java"
+public interface org.springframework.data.jpa.repository.JpaRepository<T, ID> extends org.springframework.data.repository.ListCrudRepository<T, ID>, org.springframework.data.repository.ListPagingAndSortingRepository<T, ID>, org.springframework.data.repository.query.QueryByExampleExecutor<T> {
+  public abstract void flush();
+  public abstract <S extends T> S saveAndFlush(S);
+  public abstract <S extends T> java.util.List<S> saveAllAndFlush(java.lang.Iterable<S>);
+  public default void deleteInBatch(java.lang.Iterable<T>);
+  public abstract void deleteAllInBatch(java.lang.Iterable<T>);
+  public abstract void deleteAllByIdInBatch(java.lang.Iterable<ID>);
+  public abstract void deleteAllInBatch();
+  public abstract T getOne(ID);
+  public abstract T getById(ID);
+  public abstract T getReferenceById(ID);
+  public abstract <S extends T> java.util.List<S> findAll(org.springframework.data.domain.Example<S>);
+  public abstract <S extends T> java.util.List<S> findAll(org.springframework.data.domain.Example<S>, org.springframework.data.domain.Sort);
+  public default java.lang.Iterable findAll(org.springframework.data.domain.Example, org.springframework.data.domain.Sort);
+  public default java.lang.Iterable findAll(org.springframework.data.domain.Example);
+}
+
+Compiled from "JpaRepositoryImplementation.java"
+public interface org.springframework.data.jpa.repository.support.JpaRepositoryImplementation<T, ID> extends org.springframework.data.jpa.repository.JpaRepository<T, ID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<T>, org.springframework.data.jpa.repository.support.JpaRepositoryConfigurationAware {
+}
+
+Compiled from "SimpleJpaRepository.java"
+public class org.springframework.data.jpa.repository.support.SimpleJpaRepository<T, ID> implements org.springframework.data.jpa.repository.support.JpaRepositoryImplementation<T, ID> {
+  public org.springframework.data.jpa.repository.support.SimpleJpaRepository(org.springframework.data.jpa.repository.support.JpaEntityInformation<T, ?>, jakarta.persistence.EntityManager);
+  public org.springframework.data.jpa.repository.support.SimpleJpaRepository(java.lang.Class<T>, jakarta.persistence.EntityManager);
+  public void setRepositoryMethodMetadata(org.springframework.data.jpa.repository.support.CrudMethodMetadata);
+  public void setEscapeCharacter(org.springframework.data.jpa.repository.query.EscapeCharacter);
+  public void setProjectionFactory(org.springframework.data.projection.ProjectionFactory);
+  public void deleteById(ID);
+  public void delete(T);
+  public void deleteAllById(java.lang.Iterable<? extends ID>);
+  public void deleteAllByIdInBatch(java.lang.Iterable<ID>);
+  public void deleteAll(java.lang.Iterable<? extends T>);
+  public void deleteAllInBatch(java.lang.Iterable<T>);
+  public void deleteAll();
+  public void deleteAllInBatch();
+  public java.util.Optional<T> findById(ID);
+  public T getOne(ID);
+  public T getById(ID);
+  public T getReferenceById(ID);
+  public boolean existsById(ID);
+  public java.util.List<T> findAll();
+  public java.util.List<T> findAllById(java.lang.Iterable<ID>);
+  public java.util.List<T> findAll(org.springframework.data.domain.Sort);
+  public org.springframework.data.domain.Page<T> findAll(org.springframework.data.domain.Pageable);
+  public java.util.Optional<T> findOne(org.springframework.data.jpa.domain.Specification<T>);
+  public java.util.List<T> findAll(org.springframework.data.jpa.domain.Specification<T>);
+  public org.springframework.data.domain.Page<T> findAll(org.springframework.data.jpa.domain.Specification<T>, org.springframework.data.domain.Pageable);
+  public org.springframework.data.domain.Page<T> findAll(org.springframework.data.jpa.domain.Specification<T>, org.springframework.data.jpa.domain.Specification<T>, org.springframework.data.domain.Pageable);
+  public java.util.List<T> findAll(org.springframework.data.jpa.domain.Specification<T>, org.springframework.data.domain.Sort);
+  public boolean exists(org.springframework.data.jpa.domain.Specification<T>);
+  public long delete(org.springframework.data.jpa.domain.Specification<T>);
+  public <S extends T, R> R findBy(org.springframework.data.jpa.domain.Specification<T>, java.util.function.Function<? super org.springframework.data.jpa.repository.JpaSpecificationExecutor$SpecificationFluentQuery<S>, R>);
+  public <S extends T> java.util.Optional<S> findOne(org.springframework.data.domain.Example<S>);
+  public <S extends T> long count(org.springframework.data.domain.Example<S>);
+  public <S extends T> boolean exists(org.springframework.data.domain.Example<S>);
+  public <S extends T> java.util.List<S> findAll(org.springframework.data.domain.Example<S>);
+  public <S extends T> java.util.List<S> findAll(org.springframework.data.domain.Example<S>, org.springframework.data.domain.Sort);
+  public <S extends T> org.springframework.data.domain.Page<S> findAll(org.springframework.data.domain.Example<S>, org.springframework.data.domain.Pageable);
+  public <S extends T, R> R findBy(org.springframework.data.domain.Example<S>, java.util.function.Function<org.springframework.data.repository.query.FluentQuery$FetchableFluentQuery<S>, R>);
+  public long count();
+  public long count(org.springframework.data.jpa.domain.Specification<T>);
+  public <S extends T> S save(S);
+  public <S extends T> S saveAndFlush(S);
+  public <S extends T> java.util.List<S> saveAll(java.lang.Iterable<S>);
+  public <S extends T> java.util.List<S> saveAllAndFlush(java.lang.Iterable<S>);
+  public void flush();
+  public java.lang.Iterable saveAll(java.lang.Iterable);
+  public java.lang.Iterable findAll(org.springframework.data.domain.Example, org.springframework.data.domain.Sort);
+  public java.lang.Iterable findAll(org.springframework.data.domain.Example);
+  public java.lang.Iterable findAll(org.springframework.data.domain.Sort);
+  public java.lang.Iterable findAll();
+  public java.lang.Iterable findAllById(java.lang.Iterable);
+}
+
+Compiled from "JpaSpecificationExecutor.java"
+public interface org.springframework.data.jpa.repository.JpaSpecificationExecutor<T> {
+  public abstract java.util.Optional<T> findOne(org.springframework.data.jpa.domain.Specification<T>);
+  public abstract java.util.List<T> findAll(org.springframework.data.jpa.domain.Specification<T>);
+  public abstract org.springframework.data.domain.Page<T> findAll(org.springframework.data.jpa.domain.Specification<T>, org.springframework.data.domain.Pageable);
+  public abstract org.springframework.data.domain.Page<T> findAll(org.springframework.data.jpa.domain.Specification<T>, org.springframework.data.jpa.domain.Specification<T>, org.springframework.data.domain.Pageable);
+  public abstract java.util.List<T> findAll(org.springframework.data.jpa.domain.Specification<T>, org.springframework.data.domain.Sort);
+  public abstract long count(org.springframework.data.jpa.domain.Specification<T>);
+  public abstract boolean exists(org.springframework.data.jpa.domain.Specification<T>);
+  public abstract long delete(org.springframework.data.jpa.domain.Specification<T>);
+  public abstract <S extends T, R> R findBy(org.springframework.data.jpa.domain.Specification<T>, java.util.function.Function<? super org.springframework.data.jpa.repository.JpaSpecificationExecutor$SpecificationFluentQuery<S>, R>);
+}
+
+Compiled from "QueryByExampleExecutor.java"
+public interface org.springframework.data.repository.query.QueryByExampleExecutor<T> {
+  public abstract <S extends T> java.util.Optional<S> findOne(org.springframework.data.domain.Example<S>);
+  public abstract <S extends T> java.lang.Iterable<S> findAll(org.springframework.data.domain.Example<S>);
+  public abstract <S extends T> java.lang.Iterable<S> findAll(org.springframework.data.domain.Example<S>, org.springframework.data.domain.Sort);
+  public abstract <S extends T> org.springframework.data.domain.Page<S> findAll(org.springframework.data.domain.Example<S>, org.springframework.data.domain.Pageable);
+  public abstract <S extends T> long count(org.springframework.data.domain.Example<S>);
+  public abstract <S extends T> boolean exists(org.springframework.data.domain.Example<S>);
+  public abstract <S extends T, R> R findBy(org.springframework.data.domain.Example<S>, java.util.function.Function<org.springframework.data.repository.query.FluentQuery$FetchableFluentQuery<S>, R>);
+}
+
+Compiled from "ReactiveCrudRepository.java"
+public interface org.springframework.data.repository.reactive.ReactiveCrudRepository<T, ID> extends org.springframework.data.repository.Repository<T, ID> {
+  public abstract <S extends T> reactor.core.publisher.Mono<S> save(S);
+  public abstract <S extends T> reactor.core.publisher.Flux<S> saveAll(java.lang.Iterable<S>);
+  public abstract <S extends T> reactor.core.publisher.Flux<S> saveAll(org.reactivestreams.Publisher<S>);
+  public abstract reactor.core.publisher.Mono<T> findById(ID);
+  public abstract reactor.core.publisher.Mono<T> findById(org.reactivestreams.Publisher<ID>);
+  public abstract reactor.core.publisher.Mono<java.lang.Boolean> existsById(ID);
+  public abstract reactor.core.publisher.Mono<java.lang.Boolean> existsById(org.reactivestreams.Publisher<ID>);
+  public abstract reactor.core.publisher.Flux<T> findAll();
+  public abstract reactor.core.publisher.Flux<T> findAllById(java.lang.Iterable<ID>);
+  public abstract reactor.core.publisher.Flux<T> findAllById(org.reactivestreams.Publisher<ID>);
+  public abstract reactor.core.publisher.Mono<java.lang.Long> count();
+  public abstract reactor.core.publisher.Mono<java.lang.Void> deleteById(ID);
+  public abstract reactor.core.publisher.Mono<java.lang.Void> deleteById(org.reactivestreams.Publisher<ID>);
+  public abstract reactor.core.publisher.Mono<java.lang.Void> delete(T);
+  public abstract reactor.core.publisher.Mono<java.lang.Void> deleteAllById(java.lang.Iterable<? extends ID>);
+  public abstract reactor.core.publisher.Mono<java.lang.Void> deleteAll(java.lang.Iterable<? extends T>);
+  public abstract reactor.core.publisher.Mono<java.lang.Void> deleteAll(org.reactivestreams.Publisher<? extends T>);
+  public abstract reactor.core.publisher.Mono<java.lang.Void> deleteAll();
+}
+
+Compiled from "ReactiveSortingRepository.java"
+public interface org.springframework.data.repository.reactive.ReactiveSortingRepository<T, ID> extends org.springframework.data.repository.Repository<T, ID> {
+  public abstract reactor.core.publisher.Flux<T> findAll(org.springframework.data.domain.Sort);
+}
+
+Compiled from "RxJava3CrudRepository.java"
+public interface org.springframework.data.repository.reactive.RxJava3CrudRepository<T, ID> extends org.springframework.data.repository.Repository<T, ID> {
+  public abstract <S extends T> io.reactivex.rxjava3.core.Single<S> save(S);
+  public abstract <S extends T> io.reactivex.rxjava3.core.Flowable<S> saveAll(java.lang.Iterable<S>);
+  public abstract <S extends T> io.reactivex.rxjava3.core.Flowable<S> saveAll(io.reactivex.rxjava3.core.Flowable<S>);
+  public abstract io.reactivex.rxjava3.core.Maybe<T> findById(ID);
+  public abstract io.reactivex.rxjava3.core.Maybe<T> findById(io.reactivex.rxjava3.core.Single<ID>);
+  public abstract io.reactivex.rxjava3.core.Single<java.lang.Boolean> existsById(ID);
+  public abstract io.reactivex.rxjava3.core.Single<java.lang.Boolean> existsById(io.reactivex.rxjava3.core.Single<ID>);
+  public abstract io.reactivex.rxjava3.core.Flowable<T> findAll();
+  public abstract io.reactivex.rxjava3.core.Flowable<T> findAllById(java.lang.Iterable<ID>);
+  public abstract io.reactivex.rxjava3.core.Flowable<T> findAllById(io.reactivex.rxjava3.core.Flowable<ID>);
+  public abstract io.reactivex.rxjava3.core.Single<java.lang.Long> count();
+  public abstract io.reactivex.rxjava3.core.Completable deleteById(ID);
+  public abstract io.reactivex.rxjava3.core.Completable delete(T);
+  public abstract io.reactivex.rxjava3.core.Completable deleteAllById(java.lang.Iterable<? extends ID>);
+  public abstract io.reactivex.rxjava3.core.Completable deleteAll(java.lang.Iterable<? extends T>);
+  public abstract io.reactivex.rxjava3.core.Completable deleteAll(io.reactivex.rxjava3.core.Flowable<? extends T>);
+  public abstract io.reactivex.rxjava3.core.Completable deleteAll();
+}
+
+Compiled from "RxJava3SortingRepository.java"
+public interface org.springframework.data.repository.reactive.RxJava3SortingRepository<T, ID> extends org.springframework.data.repository.Repository<T, ID> {
+  public abstract io.reactivex.rxjava3.core.Flowable<T> findAll(org.springframework.data.domain.Sort);
+}
+
+Compiled from "RevisionRepository.java"
+public interface org.springframework.data.repository.history.RevisionRepository<T, ID, N extends java.lang.Number & java.lang.Comparable<N>> extends org.springframework.data.repository.Repository<T, ID> {
+  public abstract java.util.Optional<org.springframework.data.history.Revision<N, T>> findLastChangeRevision(ID);
+  public abstract org.springframework.data.history.Revisions<N, T> findRevisions(ID);
+  public abstract org.springframework.data.domain.Page<org.springframework.data.history.Revision<N, T>> findRevisions(ID, org.springframework.data.domain.Pageable);
+  public abstract java.util.Optional<org.springframework.data.history.Revision<N, T>> findRevision(ID, N);
+}
+

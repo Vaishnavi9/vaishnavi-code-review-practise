@@ -1,0 +1,13 @@
+flowchart TD
+    need["Need a database query"] --> standard{"Standard operation already exposed?"}
+    standard -->|"yes"| base["Use the repository operation"]
+    standard -->|"no"| simple{"Small fixed set of conditions?"}
+    simple -->|"yes"| derived["Derived method name"]
+    simple -->|"no"| dynamic{"Optional filters combined dynamically?"}
+    dynamic -->|"yes"| specs["Specification / Criteria API"]
+    dynamic -->|"no"| vendor{"Need PostgreSQL-specific SQL?"}
+    vendor -->|"yes"| native["Native SQL query or JDBC helper"]
+    vendor -->|"no"| jpql["JPQL using entities and properties"]
+    jpql -.->|"reusable registered definition"| named["Named query is another way to store the query"]
+    classDef default fill:#f4f8fc,stroke:#9eb4c8,color:#20354a
+

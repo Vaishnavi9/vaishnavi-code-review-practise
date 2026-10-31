@@ -1,0 +1,10 @@
+flowchart LR
+    fresh["New Java entity"] -->|"persist"| tracked["Managed entity in persistence context"]
+    detached["Detached entity"] -->|"merge copies state"| tracked
+    read["Database query"] -->|"map rows"| tracked
+    tracked -->|"change a field"| dirty["Hibernate tracks changed state"]
+    dirty -->|"flush"| sql["SQL sent inside transaction"]
+    sql -->|"commit"| durable["Database change committed"]
+    tracked -->|"detach or clear"| detached
+    classDef default fill:#f4f8fc,stroke:#9eb4c8,color:#20354a
+

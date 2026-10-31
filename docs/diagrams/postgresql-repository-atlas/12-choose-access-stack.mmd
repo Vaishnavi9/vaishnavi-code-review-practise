@@ -1,0 +1,18 @@
+flowchart TD
+    choice["Choose access style deliberately"] --> jpa["Current: Spring Data JPA"]
+    jpa --> jpaImpl["SimpleJpaRepository"]
+    jpaImpl --> hibernate["Hibernate / JDBC"]
+    hibernate --> pg[("PostgreSQL")]
+    choice --> jdbc["Alternative: Spring Data JDBC"]
+    jdbc --> jdbcImpl["SimpleJdbcRepository / JDBC"]
+    jdbcImpl --> pg
+    choice --> template["Alternative: JdbcTemplate or JdbcClient"]
+    template --> pg
+    choice --> reactive["Alternative: Spring Data R2DBC"]
+    reactive --> reactiveImpl["SimpleR2dbcRepository / R2DBC driver"]
+    reactiveImpl --> pg
+    choice --> mongo["Separate database: Spring Data MongoDB"]
+    mongo --> mongoImpl["SimpleMongoRepository / MongoTemplate / Mongo driver"]
+    mongoImpl --> mongoDb[("MongoDB")]
+    classDef default fill:#f4f8fc,stroke:#9eb4c8,color:#20354a
+
